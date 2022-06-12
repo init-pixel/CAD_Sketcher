@@ -1,5 +1,5 @@
 import bpy
-from bpy.types import Panel, Menu, UIList
+from bpy.types import Panel, Menu, UIList, Context
 
 from . import operators, functions, class_defines
 
@@ -61,14 +61,17 @@ class VIEW3D_UL_sketches(UIList):
             layout.label(text="", icon_value=icon)
 
 
-class VIEW3D_PT_sketcher(Panel):
-    bl_label = "Sketcher"
-    bl_idname = "VIEW3D_PT_sketcher"
+class SketcherVIEW3DPanel:
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Sketcher"
 
-    def draw(self, context):
+
+class VIEW3D_PT_sketcher(SketcherVIEW3DPanel, Panel):
+    bl_label = "Sketcher"
+    bl_idname = "VIEW3D_PT_sketcher"
+
+    def draw(self, context: Context):
         layout = self.layout
 
         sketch_selector(context, layout, show_selector=False)
@@ -124,39 +127,53 @@ class VIEW3D_PT_sketcher(Panel):
                 "ui_active_sketch",
             )
 
-        layout.separator()
 
+class VIEW3D_PT_sketcher_debug(SketcherVIEW3DPanel, Panel):
+    bl_label = "Debug"
+    bl_idname = "VIEW3D_PT_sketcher_debug"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context: Context):
+        prefs = functions.get_prefs()
+        return prefs.show_debug_settings
+
+    def draw(self, context: Context):
+        layout = self.layout
+        layout.use_property_split = False
+        layout.label(text="Debug:")
+        layout.label(text="Version: " + str(context.scene.sketcher.version[:]))
+
+        layout.operator(operators.VIEW3D_OT_slvs_write_selection_texture.bl_idname)
+        layout.operator(operators.View3D_OT_slvs_solve.bl_idname)
+        layout.operator(
+            operators.View3D_OT_slvs_solve.bl_idname, text="Solve All"
+        ).all = True
+        prefs = functions.get_prefs()
+
+        layout.operator(operators.View3D_OT_slvs_test.bl_idname)
+        layout.prop(context.scene.sketcher, "show_origin")
+        layout.prop(prefs, "hide_inactive_constraints")
+        layout.prop(prefs, "all_entities_selectable")
+        layout.prop(prefs, "force_redraw")
+
+
+class VIEW3D_PT_sketcher_add_constraints(SketcherVIEW3DPanel, Panel):
+    bl_label = "Add Constraints"
+    bl_idname = "VIEW3D_PT_sketcher_add_entities"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    def draw(self, context: Context):
+        layout = self.layout
         layout.label(text="Constraints:")
         col = layout.column(align=True)
         for op in operators.constraint_operators:
             col.operator(op.bl_idname)
 
-        prefs = functions.get_prefs()
-        if prefs.show_debug_settings:
-            layout.use_property_split = False
-            layout.separator()
-            layout.label(text="Debug:")
-            layout.label(text="Version: " + str(context.scene.sketcher.version[:]))
 
-            layout.operator(operators.VIEW3D_OT_slvs_write_selection_texture.bl_idname)
-            layout.operator(operators.View3D_OT_slvs_solve.bl_idname)
-            layout.operator(
-                operators.View3D_OT_slvs_solve.bl_idname, text="Solve All"
-            ).all = True
-
-            layout.operator(operators.View3D_OT_slvs_test.bl_idname)
-            layout.prop(context.scene.sketcher, "show_origin")
-            layout.prop(prefs, "hide_inactive_constraints")
-            layout.prop(prefs, "all_entities_selectable")
-            layout.prop(prefs, "force_redraw")
-
-
-class VIEW3D_PT_sketcher_entities(Panel):
+class VIEW3D_PT_sketcher_entities(SketcherVIEW3DPanel, Panel):
     bl_label = "Entities"
     bl_idname = "VIEW3D_PT_sketcher_entities"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "Sketcher"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -221,12 +238,9 @@ class VIEW3D_PT_sketcher_entities(Panel):
             props.highlight_hover = True
 
 
-class VIEW3D_PT_sketcher_constraints(Panel):
+class VIEW3D_PT_sketcher_constraints(SketcherVIEW3DPanel, Panel):
     bl_label = "Constraints"
     bl_idname = "VIEW3D_PT_sketcher_constraints"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "Sketcher"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -350,13 +364,12 @@ def draw_object_context_menu(self, context):
     layout.separator()
 
 
-classes = (
+classes = [
     VIEW3D_UL_sketches,
-    VIEW3D_PT_sketcher,
-    VIEW3D_PT_sketcher_entities,
-    VIEW3D_PT_sketcher_constraints,
     VIEW3D_MT_sketches,
-)
+]
+
+classes += [panel for panel in SketcherVIEW3DPanel.__subclasses__()]
 
 
 def register():
