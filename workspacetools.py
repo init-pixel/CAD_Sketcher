@@ -1,85 +1,86 @@
-from bpy.types import WorkSpaceTool
-from . import operators, gizmos
 import os
+
+from bpy.types import WorkSpaceTool, UILayout, Context, Operator
+
+from . import operators, gizmos
 
 tool_prefix = "sketcher."
 
 
-def get_addon_icon_path(icon_name):
+def get_addon_icon_path(icon_name: str):
     return os.path.join(os.path.dirname(__file__), "icons", icon_name)
 
 
-def tool_invoke_kmi(button, tool, operator):
+def tool_invoke_kmi(button, tool, operator: Operator):
     return (
         operators.View3D_OT_invoke_tool.bl_idname,
         {"type": button, "value": "PRESS"},
         {"properties": [("tool_name", tool), ("operator", operator)]},
     )
 
+
 constraint_access = (
     (
         operators.VIEW3D_OT_slvs_add_coincident.bl_idname,
         {"type": "C", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     (
         operators.VIEW3D_OT_slvs_add_vertical.bl_idname,
         {"type": "V", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     (
         operators.VIEW3D_OT_slvs_add_horizontal.bl_idname,
         {"type": "H", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     (
         operators.VIEW3D_OT_slvs_add_equal.bl_idname,
         {"type": "E", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     (
         operators.VIEW3D_OT_slvs_add_parallel.bl_idname,
         {"type": "P", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     (
         operators.VIEW3D_OT_slvs_add_perpendicular.bl_idname,
         {"type": "N", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     (
         operators.VIEW3D_OT_slvs_add_tangent.bl_idname,
         {"type": "T", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     (
         operators.VIEW3D_OT_slvs_add_midpoint.bl_idname,
         {"type": "M", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     (
         operators.VIEW3D_OT_slvs_add_ratio.bl_idname,
         {"type": "R", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
-
     # Dimensional Constraints
     (
         operators.VIEW3D_OT_slvs_add_distance.bl_idname,
         {"type": "D", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     (
         operators.VIEW3D_OT_slvs_add_angle.bl_idname,
         {"type": "A", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     (
         operators.VIEW3D_OT_slvs_add_diameter.bl_idname,
         {"type": "O", "value": "PRESS", "shift": True},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
-
 )
 
 tool_access = (
@@ -107,21 +108,16 @@ tool_access = (
     (
         operators.View3D_OT_slvs_add_sketch.bl_idname,
         {"type": "S", "value": "PRESS"},
-        {"properties": [("wait_for_input", True), ]}
+        {"properties": [("wait_for_input", True),]},
     ),
     *constraint_access,
 )
 
-def tool_numeric_invoke_km(operator):
+
+def tool_numeric_invoke_km(operator: Operator):
     km = []
     for event in operators.numeric_events:
-        km.append(
-            (
-                operator,
-                {"type": event, "value": "PRESS"},
-                None,
-            )
-        )
+        km.append((operator, {"type": event, "value": "PRESS"}, None,))
     return km
 
 
@@ -172,7 +168,7 @@ class VIEW3D_T_slvs_select(WorkSpaceTool):
         *tool_access,
     )
 
-    def draw_settings(context, layout, tool):
+    def draw_settings(context: Context, layout: UILayout, tool):
         props = tool.operator_properties(operators.View3D_OT_slvs_select.bl_idname)
 
 
@@ -190,7 +186,7 @@ tool_keymap = (
 )
 
 
-def operator_access(operator):
+def operator_access(operator: Operator):
     return (
         *tool_numeric_invoke_km(operator),
         (
@@ -201,14 +197,15 @@ def operator_access(operator):
     )
 
 
-class GenericStateTool():
+class GenericStateTool:
     @classmethod
-    def bl_description(cls, context, item, keymap):
+    def bl_description(cls, context: Context, item, keymap):
         op_name = cls.bl_operator if hasattr(cls, "bl_operator") else ""
         desc = ""
 
         if op_name:
             import _bpy
+
             desc = _bpy.ops.get_rna_type(op_name).description
 
         for kmi in tool_access:
@@ -220,6 +217,7 @@ class GenericStateTool():
                     desc += "\n\nInvoke Shortcut: " + button
 
         return desc
+
 
 class View3D_T_slvs_add_point3d(GenericStateTool, WorkSpaceTool):
     bl_space_type = "VIEW_3D"
@@ -333,6 +331,7 @@ class View3D_T_slvs_add_rectangle(GenericStateTool, WorkSpaceTool):
         *operator_access(operators.View3D_OT_slvs_add_rectangle.bl_idname),
     )
 
+
 class View3D_T_slvs_add_workplane_face(GenericStateTool, WorkSpaceTool):
     bl_space_type = "VIEW_3D"
     bl_context_mode = "OBJECT"
@@ -346,6 +345,7 @@ class View3D_T_slvs_add_workplane_face(GenericStateTool, WorkSpaceTool):
         *tool_access,
         *operator_access(operators.View3D_OT_slvs_add_workplane_face.bl_idname),
     )
+
 
 class View3D_T_slvs_add_workplane(GenericStateTool, WorkSpaceTool):
     bl_space_type = "VIEW_3D"
@@ -365,27 +365,22 @@ class View3D_T_slvs_add_workplane(GenericStateTool, WorkSpaceTool):
 tools = (
     (VIEW3D_T_slvs_select, {"separator": True, "group": False}),
     (View3D_T_slvs_add_point2d, {"separator": True, "group": True}),
-    (
-        View3D_T_slvs_add_point3d,
-        {
-            "after": {View3D_T_slvs_add_point2d.bl_idname},
-        },
-    ),
+    (View3D_T_slvs_add_point3d, {"after": {View3D_T_slvs_add_point2d.bl_idname},},),
     (View3D_T_slvs_add_line2d, {"separator": False, "group": True}),
-    (
-        View3D_T_slvs_add_line3d,
-        {
-            "after": {View3D_T_slvs_add_line2d.bl_idname},
-        },
-    ),
+    (View3D_T_slvs_add_line3d, {"after": {View3D_T_slvs_add_line2d.bl_idname},},),
     (View3D_T_slvs_add_circle2d, {"separator": False, "group": False}),
     (View3D_T_slvs_add_arc2d, {"separator": False, "group": False}),
     (View3D_T_slvs_add_rectangle, {"separator": False, "group": False}),
     (View3D_T_slvs_add_workplane_face, {"separator": True, "group": True}),
-    (View3D_T_slvs_add_workplane, {"after": {View3D_T_slvs_add_workplane_face.bl_idname}}),
+    (
+        View3D_T_slvs_add_workplane,
+        {"after": {View3D_T_slvs_add_workplane_face.bl_idname}},
+    ),
 )
 
 import bpy
+
+
 def register():
     if bpy.app.background:
         return

@@ -1,18 +1,18 @@
+import sys
+from pathlib import Path
+import logging
+
 import bpy
+from bpy.types import AddonPreferences, Panel, Menu, Context
 from bpy.props import (
     PointerProperty,
     BoolProperty,
     StringProperty,
     EnumProperty,
     IntProperty,
-    FloatProperty
+    FloatProperty,
 )
-
-from bpy.types import AddonPreferences, Panel, Menu
-
-import sys
-from pathlib import Path
-import logging
+from bl_ui.utils import PresetPanel
 
 from . import functions, global_data, theme, units, install
 
@@ -27,6 +27,7 @@ log_levels = [
 ]
 
 logger = logging.getLogger(__name__)
+
 
 def get_log_level(self):
     prop = self.bl_rna.properties["logging_level"]
@@ -45,7 +46,9 @@ def set_log_level(self, value):
     self["logging_level"] = level
     logger.setLevel(level)
 
-def get_wheel():
+
+def get_wheel() -> str:
+    """ Get platform appropriate wheel"""
     p = Path(__file__).parent.absolute()
     from sys import platform, version_info
 
@@ -73,15 +76,12 @@ def get_wheel():
     return ""
 
 
-### Presets
-from bl_ui.utils import PresetPanel
-
-
 class SKETCHER_PT_theme_presets(PresetPanel, Panel):
     bl_label = "Theme Presets"
     preset_subdir = "bgs/theme"
     preset_operator = "script.execute_preset"
     preset_add_operator = "bgs.theme_preset_add"
+
 
 class SKETCHER_MT_theme_presets(Menu):
     bl_label = "Theme Presets"
@@ -90,12 +90,13 @@ class SKETCHER_MT_theme_presets(Menu):
     draw = Menu.draw_preset
 
 
-
 def get_prefs():
     return bpy.context.preferences.addons[__package__].preferences
 
+
 def get_scale():
     return bpy.context.preferences.system.ui_scale * get_prefs().entity_scale
+
 
 def is_experimental():
     return get_prefs().show_debug_settings
@@ -106,8 +107,7 @@ class Preferences(AddonPreferences):
     theme_settings: PointerProperty(type=theme.ThemeSettings)
 
     show_debug_settings: BoolProperty(
-        name="Show Debug Settings",
-        default=False,
+        name="Show Debug Settings", default=False,
     )
     show_theme_settings: BoolProperty(
         name="Show Theme Settings",
@@ -138,18 +138,28 @@ class Preferences(AddonPreferences):
     decimal_precision: IntProperty(
         name="Decimal Precision",
         description="Number of digits after the comma",
-        default=3, min=0, soft_max=7
+        default=3,
+        min=0,
+        soft_max=7,
     )
     imperial_precision: units.imperial_precision_prop
     angle_precision: IntProperty(
-        name='Angle Precision', min=0, max=5, default=0,
-        description="Angle decimal precision")
+        name="Angle Precision",
+        min=0,
+        max=5,
+        default=0,
+        description="Angle decimal precision",
+    )
 
-    entity_scale: FloatProperty(name="Entity Scale", default=1.0, min=0.1, soft_max=3.0, update=theme.update)
-    gizmo_scale: FloatProperty(name="Icon Scale", default=15.0, min=1.0, soft_max=25.0, update=theme.update)
+    entity_scale: FloatProperty(
+        name="Entity Scale", default=1.0, min=0.1, soft_max=3.0, update=theme.update
+    )
+    gizmo_scale: FloatProperty(
+        name="Icon Scale", default=15.0, min=1.0, soft_max=25.0, update=theme.update
+    )
     text_size: IntProperty(name="Text Size", default=15, min=5, soft_max=25)
 
-    def draw(self, context):
+    def draw(self, context: Context):
         layout = self.layout
         layout.use_property_split = True
 
@@ -241,18 +251,23 @@ class Preferences(AddonPreferences):
 
             list_props_recursiv(self.theme_settings)
 
-classes =     (
+
+classes = (
     SKETCHER_MT_theme_presets,
     SKETCHER_PT_theme_presets,
     Preferences,
 )
 
+
 def register():
     from bpy.utils import register_class
+
     for cls in classes:
         register_class(cls)
 
+
 def unregister():
     from bpy.utils import unregister_class
+
     for cls in reversed(classes):
         unregister_class(cls)

@@ -1,13 +1,11 @@
 import logging
+from . import class_defines
 
 logger = logging.getLogger(__name__)
 
-from . import class_defines
-
 
 def point_entity_mapping(scene):
-
-    # Get a entities per point mapping
+    """ Get a entities per point mapping """
     points = []
     entities = []
     for entity in scene.sketcher.entities.all:
@@ -61,7 +59,11 @@ class BezierConvertor:
     # TODO: rename ignore_point -> start_point / rename path -> spline_path
     def walker(self, entity, path, ignore_point=None, invert=False):
         segments = path[0]
-        logger.debug("goto: {} entrypoint: {} invert_walker {}".format(entity, ignore_point, invert))
+        logger.debug(
+            "goto: {} entrypoint: {} invert_walker {}".format(
+                entity, ignore_point, invert
+            )
+        )
 
         if invert:
             # NOTE: this might be slow
@@ -81,10 +83,7 @@ class BezierConvertor:
 
         points = list(
             filter(
-                (
-                    lambda p: p.is_point()
-                    and p != ignore_point
-                ),
+                (lambda p: p.is_point() and p != ignore_point),
                 entity.connection_points(),
             )
         )

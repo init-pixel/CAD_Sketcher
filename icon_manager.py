@@ -1,32 +1,32 @@
-import gpu
-from gpu_extras.batch import batch_for_shader
-from bpy.app import background
-
 from pathlib import Path
 
-from . import functions
+from bpy.app import background
+import gpu
+from gpu_extras.batch import batch_for_shader
+
 from .shaders import Shaders
 
 icons = {}
 
-def coords_from_icon(data, range_x=255, range_y=255):
+
+def coords_from_icon(data, range_x: int = 255, range_y: int = 255):
     length = len(data)
-    geometry_data = data[:length // 3]
-    tris = [geometry_data[i*6:(i+1)*6] for i in range(len(geometry_data) // 6)]
+    geometry_data = data[: length // 3]
+    tris = [geometry_data[i * 6 : (i + 1) * 6] for i in range(len(geometry_data) // 6)]
 
     coords = []
     indices = []
     for i, tri in enumerate(tris):
         v1 = tri[0:2]
-        verts = [tri[i*2:(i+1)*2] for i in range(3)]
+        verts = [tri[i * 2 : (i + 1) * 2] for i in range(3)]
 
         indices.append([])
 
         for v in verts:
 
-            x = (int.from_bytes(v[0], "little") / range_x) -0.5
-            y = (int.from_bytes(v[1], "little") / range_y) -0.5
-            co = (x,y)
+            x = (int.from_bytes(v[0], "little") / range_x) - 0.5
+            y = (int.from_bytes(v[1], "little") / range_y) - 0.5
+            co = (x, y)
 
             if not co in coords:
                 coords.append(co)
@@ -37,6 +37,7 @@ def coords_from_icon(data, range_x=255, range_y=255):
             indices[i].append(index)
 
     return coords, indices
+
 
 def read_icon(fp):
     data = []
@@ -59,9 +60,7 @@ def read_icon(fp):
 
 def batch_from_coords(coords, indices):
     shader = Shaders.uniform_color_2d()
-    return batch_for_shader(
-        shader, "TRIS", {"pos": coords}, indices=indices
-    )
+    return batch_for_shader(shader, "TRIS", {"pos": coords}, indices=indices)
 
 
 def load():
@@ -80,14 +79,14 @@ def draw(id, color):
     if not batch:
         batch = icons.get("none")
     if not batch:
-        print("Icon with name: \"{}\" not found!".format(id))
+        print('Icon with name: "{}" not found!'.format(id))
         return
 
-    gpu.state.blend_set('ALPHA')
+    gpu.state.blend_set("ALPHA")
 
     shader = Shaders.uniform_color_2d()
     shader.bind()
     shader.uniform_float("color", color)
     batch.draw(shader)
 
-    gpu.state.blend_set('NONE')
+    gpu.state.blend_set("NONE")

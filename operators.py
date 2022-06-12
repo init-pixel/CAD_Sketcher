@@ -1,8 +1,14 @@
-############### Operators ###############
-import bpy, bgl, gpu
-from gpu_extras.batch import batch_for_shader
-from bpy.types import Operator
-from . import global_data, functions, class_defines, convertors
+"""Operators"""
+
+import logging
+import math
+
+import bpy
+from bpy.types import Operator, Context, Event, PropertyGroup, Object, Scene, Mesh
+from bl_operators.presets import AddPresetBase
+import bgl
+import gpu
+import bmesh
 from bpy.props import (
     IntProperty,
     StringProperty,
@@ -11,18 +17,17 @@ from bpy.props import (
     EnumProperty,
     BoolProperty,
 )
-import math
-from mathutils import Vector, Matrix
-from mathutils.geometry import intersect_line_plane, distance_point_to_plane
+from mathutils import Vector
+from mathutils.geometry import intersect_line_plane
 
-import functools
-import logging
+from .solver import Solver, solve_system
+from . import global_data, functions, class_defines, convertors
 
 logger = logging.getLogger(__name__)
 
 
-def draw_selection_buffer(context):
-    # Draw elements offscreen
+def draw_selection_buffer(context: Context):
+    """ Draw elements offscreen """
     region = context.region
 
     # create offscreen
@@ -44,7 +49,7 @@ def draw_selection_buffer(context):
             e.draw_id(context)
 
 
-def ensure_selection_texture(context):
+def ensure_selection_texture(context: Context):
     if not global_data.redraw_selection_buffer:
         return
 
@@ -52,10 +57,10 @@ def ensure_selection_texture(context):
     global_data.redraw_selection_buffer = False
 
 
-# TODO: Avoid to always update batches and selection texture
-
-
-def update_elements(context, force=False):
+def update_elements(context: Context, force: bool = False):
+    """
+    TODO: Avoid to always update batches and selection texture
+    """
     entities = list(context.scene.sketcher.entities.all)
     msg = ""
     for e in entities:
@@ -71,10 +76,10 @@ def update_elements(context, force=False):
         logger.debug("Update geometry batches:" + msg)
 
 
-def draw_elements(context):
-    for e in reversed(list(context.scene.sketcher.entities.all)):
-        if hasattr(e, "draw"):
-            e.draw(context)
+def draw_elements(context: Context):
+    for entity in reversed(list(context.scene.sketcher.entities.all)):
+        if hasattr(entity, "draw"):
+            entity.draw(context)
 
 
 def draw_cb():
@@ -116,7 +121,7 @@ class HighlightElement:
     highlight_members: BoolProperty(name="Highlight Members")
 
     @classmethod
-    def _do_highlight(cls, context, properties):
+    def _do_highlight(cls, context: Context, properties: PropertyGroup):
         if not properties.is_property_set("index"):
             return cls.__doc__
 
@@ -141,21 +146,21 @@ class HighlightElement:
         context.area.tag_redraw()
         return cls.__doc__
 
-    def handle_highlight_active(self, context):
+    def handle_highlight_active(self, context: Context):
         properties = self.properties
         if properties.highlight_active:
             self._do_highlight(context, properties)
 
     @classmethod
-    def handle_highlight_hover(cls, context, properties):
+    def handle_highlight_hover(cls, context: Context, properties: PropertyGroup):
         if properties.highlight_hover:
             cls._do_highlight(context, properties)
 
     @classmethod
-    def description(cls, context, properties):
+    def description(cls, context: Context, properties: PropertyGroup):
         cls.handle_highlight_hover(context, properties)
 
-    def invoke(self, context, event):
+    def invoke(self, context, event: Event):
         self.handle_highlight_active(context)
         return self.execute(context)
 
@@ -164,7 +169,7 @@ class View3D_OT_slvs_register_draw_cb(Operator):
     bl_idname = "view3d.slvs_register_draw_cb"
     bl_label = "Register Draw Callback"
 
-    def execute(self, context):
+    def execute(self, context: Context):
         global_data.draw_handle = bpy.types.SpaceView3D.draw_handler_add(
             draw_cb, (), "WINDOW", "POST_VIEW"
         )
@@ -176,23 +181,23 @@ class View3D_OT_slvs_unregister_draw_cb(Operator):
     bl_idname = "view3d.slvs_unregister_draw_cb"
     bl_label = ""
 
-    def execute(self, context):
+    def execute(self, context: Context):
         global_data.draw_handler.remove_handle()
         return {"FINISHED"}
 
 
-def deselect_all(context):
+def deselect_all(context: Context):
     global_data.selected.clear()
 
 
-def entities_3d(context):
-    for e in context.scene.sketcher.entities.all:
-        if hasattr(e, "sketch"):
+def entities_3d(context: Context):
+    for entity in context.scene.sketcher.entities.all:
+        if hasattr(entity, "sketch"):
             continue
-        yield e
+        yield entity
 
 
-def select_all(context):
+def select_all(context: Context):
     sketch = context.scene.sketcher.active_sketch
     if sketch:
         generator = sketch.sketch_entities(context)
@@ -225,11 +230,15 @@ class View3D_OT_slvs_select(Operator, HighlightElement):
     # TODO: Add selection modes
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, context: Context):
         return True
 
-    def execute(self, context):
-        index = self.index if self.properties.is_property_set("index") else global_data.hover
+    def execute(self, context: Context):
+        index = (
+            self.index
+            if self.properties.is_property_set("index")
+            else global_data.hover
+        )
         if index != -1:
             entity = context.scene.sketcher.entities.get(index)
             entity.selected = not entity.selected
@@ -247,7 +256,7 @@ class View3D_OT_slvs_select_all(Operator):
 
     deselect: BoolProperty(name="Deselect")
 
-    def execute(self, context):
+    def execute(self, context: Context):
         if self.deselect:
             deselect_all(context)
         else:
@@ -262,34 +271,34 @@ class View3D_OT_slvs_context_menu(Operator, HighlightElement):
     bl_idname = "view3d.slvs_context_menu"
     bl_label = "Solvespace Context Menu"
 
-    type: StringProperty(name="Type", options={'SKIP_SAVE'})
-    index: IntProperty(name="Index", default=-1, options={'SKIP_SAVE'})
+    type: StringProperty(name="Type", options={"SKIP_SAVE"})
+    index: IntProperty(name="Index", default=-1, options={"SKIP_SAVE"})
     delayed: BoolProperty(default=True)
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, context: Context):
         return True
 
     @classmethod
-    def description(cls, context, properties):
+    def description(cls, context: Context, properties: PropertyGroup):
         cls.handle_highlight_hover(context, properties)
         if properties.type:
             return properties.type.capitalize()
         return cls.__doc__
 
-    def invoke(self, context, event):
+    def invoke(self, context: Context, event: Event):
         if not self.delayed:
             return self.execute(context)
 
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
-    def modal(self, context, event):
+    def modal(self, context: Context, event: Event):
         if event.value == "RELEASE":
             return self.execute(context)
         return {"RUNNING_MODAL"}
 
-    def execute(self, context):
+    def execute(self, context: Context):
         is_entity = True
         entity_index = None
         constraint_index = None
@@ -303,12 +312,16 @@ class View3D_OT_slvs_context_menu(Operator, HighlightElement):
             is_entity = False
         else:
             # Entities
-            entity_index = self.index if self.properties.is_property_set("index") else global_data.hover
+            entity_index = (
+                self.index
+                if self.properties.is_property_set("index")
+                else global_data.hover
+            )
 
             if entity_index != -1:
                 element = context.scene.sketcher.entities.get(entity_index)
 
-        def draw_context_menu(self, context):
+        def draw_context_menu(self, context: Context):
             col = self.layout.column()
 
             if not element:
@@ -336,14 +349,19 @@ class View3D_OT_slvs_context_menu(Operator, HighlightElement):
 
             # Delete operator
             if is_entity:
-                col.operator(View3D_OT_slvs_delete_entity.bl_idname, icon='X').index = element.slvs_index
+                col.operator(
+                    View3D_OT_slvs_delete_entity.bl_idname, icon="X"
+                ).index = element.slvs_index
             else:
-                props = col.operator(View3D_OT_slvs_delete_constraint.bl_idname, icon='X')
+                props = col.operator(
+                    View3D_OT_slvs_delete_constraint.bl_idname, icon="X"
+                )
                 props.type = element.type
                 props.index = constraint_index
 
         context.window_manager.popup_menu(draw_context_menu)
         return {"FINISHED"}
+
 
 class View3D_OT_slvs_show_solver_state(Operator):
     """Show details about solver status"""
@@ -354,15 +372,15 @@ class View3D_OT_slvs_show_solver_state(Operator):
     index: IntProperty(default=-1)
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, context: Context):
         return True
 
-    def execute(self, context):
+    def execute(self, context: Context):
         index = self.index
         if index == -1:
             return {"CANCELLED"}
 
-        def draw_item(self, context):
+        def draw_item(self, context: Context):
             layout = self.layout
             sketch = context.scene.sketcher.entities.get(index)
             state = sketch.get_solver_state()
@@ -376,9 +394,6 @@ class View3D_OT_slvs_show_solver_state(Operator):
 
         context.window_manager.popup_menu(draw_item)
         return {"FINISHED"}
-
-
-from .solver import Solver, solve_system
 
 
 class View3D_OT_slvs_solve(Operator):
@@ -418,10 +433,10 @@ class View3D_OT_slvs_tweak(Operator):
     bl_options = {"UNDO"}
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, context: Context):
         return True
 
-    def invoke(self, context, event):
+    def invoke(self, context: Context, event):
         index = global_data.hover
         # TODO: hover should be -1 if nothing is hovered, not None!
         if index == None or index == -1:
@@ -519,8 +534,8 @@ class VIEW3D_OT_slvs_write_selection_texture(Operator):
             return {"CANCELLED"}
 
         if not global_data.offscreen:
-            self.report({'WARNING'}, "Selection texture is not available")
-            return {'CANCELLED'}
+            self.report({"WARNING"}, "Selection texture is not available")
+            return {"CANCELLED"}
 
         image = write_selection_buffer_image("selection_buffer")
         self.report({"INFO"}, "Wrote buffer to image: {}".format(image.name))
@@ -565,9 +580,7 @@ def stateful_op_desc(base, *state_descs):
     states = ""
     length = len(state_descs)
     for i, state in enumerate(state_descs):
-        states += " - {}{}".format(
-            state, ("  \n" if i < length - 1 else "")
-        )
+        states += " - {}{}".format(state, ("  \n" if i < length - 1 else ""))
     desc = "{}  \n  \nStates:  \n{}".format(base, states)
     return desc
 
@@ -599,10 +612,14 @@ numeric_events = (
     "NUMPAD_MINUS",
 )
 
+
 def get_evaluated_obj(context, object):
     return object.evaluated_get(context.evaluated_depsgraph_get())
 
-def get_mesh_element(context, coords, vertex=False, edge=False, face=False, threshold=0.5, object=None):
+
+def get_mesh_element(
+    context, coords, vertex=False, edge=False, face=False, threshold=0.5, object=None
+):
     from bpy_extras import view3d_utils
 
     # get the ray from the viewport and mouse
@@ -612,7 +629,9 @@ def get_mesh_element(context, coords, vertex=False, edge=False, face=False, thre
     ray_origin = view3d_utils.region_2d_to_origin_3d(region, rv3d, coords)
     depsgraph = context.view_layer.depsgraph
     scene = context.scene
-    result, loc, _normal, face_index, ob, _matrix = scene.ray_cast(depsgraph, ray_origin, view_vector)
+    result, loc, _normal, face_index, ob, _matrix = scene.ray_cast(
+        depsgraph, ray_origin, view_vector
+    )
 
     if object:
         # Alternatively do a object raycast if we know the object already
@@ -647,7 +666,9 @@ def get_mesh_element(context, coords, vertex=False, edge=False, face=False, thre
         return False
 
     if vertex:
-        i, dist = get_closest([(me.vertices[i].co - loc).length for i in polygon.vertices])
+        i, dist = get_closest(
+            [(me.vertices[i].co - loc).length for i in polygon.vertices]
+        )
         if i is not None:
             closest_type = "VERTEX"
             closest_index = polygon.vertices[i]
@@ -656,8 +677,11 @@ def get_mesh_element(context, coords, vertex=False, edge=False, face=False, thre
     if edge:
         face_edge_map = {ek: me.edges[i] for i, ek in enumerate(me.edge_keys)}
         i, dist = get_closest(
-            [(((me.vertices[start].co + me.vertices[end].co)/2)-loc).length for start, end in polygon.edge_keys]
-            )
+            [
+                (((me.vertices[start].co + me.vertices[end].co) / 2) - loc).length
+                for start, end in polygon.edge_keys
+            ]
+        )
         if i is not None and is_closer(dist, closest_dist):
             closest_type = "EDGE"
             closest_index = face_edge_map[polygon.edge_keys[i]].index
@@ -673,12 +697,16 @@ def get_mesh_element(context, coords, vertex=False, edge=False, face=False, thre
         return ob, closest_type, closest_index
     return ob, bpy.types.Object, None
 
+
 def to_list(val):
     if val == None:
         return []
     if type(val) in (list, tuple):
         return list(val)
-    return [val,]
+    return [
+        val,
+    ]
+
 
 def _get_pointer_get_set(index):
     @property
@@ -688,9 +716,12 @@ def _get_pointer_get_set(index):
     @func.setter
     def setter(self, value):
         self.set_state_pointer(value, index=index)
+
     return func, setter
 
+
 mesh_element_types = bpy.types.MeshVertex, bpy.types.MeshEdge, bpy.types.MeshPolygon
+
 
 class StatefulOperator:
     state_index: IntProperty(options={"HIDDEN", "SKIP_SAVE"})
@@ -745,9 +776,12 @@ class StatefulOperator:
 
         for a in annotations.keys():
             if hasattr(cls, a):
-                raise NameError("Cannot register implicit pointer properties, class {} already has attribute of name {}".format(cls, a))
+                raise NameError(
+                    "Cannot register implicit pointer properties, class {} already has attribute of name {}".format(
+                        cls, a
+                    )
+                )
         setattr(cls, "__annotations__", annotations)
-
 
     def state_property(self, state_index):
         return None
@@ -798,7 +832,6 @@ class StatefulOperator:
                 return obj_name, index
             return obj.data.polygons[index]
 
-
     def set_state_pointer(self, values, index=None, implicit=False):
         # handles type specific setters
         if index is None:
@@ -826,13 +859,14 @@ class StatefulOperator:
         elif pointer_type in mesh_element_types:
             obj_name = get_value(0) if implicit else get_value(0).name
             if self._has_global_object():
-                self._state_data[self._get_global_object_index()]["object_name"] = obj_name
+                self._state_data[self._get_global_object_index()][
+                    "object_name"
+                ] = obj_name
             else:
                 data["object_name"] = obj_name
 
             data["mesh_index"] = get_value(1) if implicit else get_value(1).index
             return True
-
 
     def pick_element(self, context, coords):
         # return a list of implicit prop values if pointer need implicit props
@@ -853,7 +887,9 @@ class StatefulOperator:
 
         global_ob = None
         if self._has_global_object():
-            global_ob_name = self._state_data[self._get_global_object_index()].get("object_name")
+            global_ob_name = self._state_data[self._get_global_object_index()].get(
+                "object_name"
+            )
             if global_ob_name:
                 global_ob = bpy.data.objects[global_ob_name]
 
@@ -874,7 +910,6 @@ class StatefulOperator:
         }[type]
 
         return ob.name, index
-
 
     def get_property(self, index=None):
         if index == None:
@@ -898,7 +933,6 @@ class StatefulOperator:
 
         retval = to_list(props)
         return retval
-
 
     @classmethod
     def get_states_definition(cls):
@@ -1161,7 +1195,6 @@ class StatefulOperator:
             self.state_data["is_existing_entity"] = True
             return True
 
-
     def prefill_state_props(self, context):
         selected = self.gather_selection(context)
         states = self.get_states_definition()
@@ -1281,7 +1314,9 @@ class StatefulOperator:
                 if props and not is_existing_entity:
                     create = self.get_func(state, "create_element")
 
-                    ret_values = create(context, [getattr(self, p) for p in props], state, data)
+                    ret_values = create(
+                        context, [getattr(self, p) for p in props], state, data
+                    )
                     values = to_list(ret_values)
                     self.set_state_pointer(values, index=i, implicit=True)
 
@@ -1325,7 +1360,9 @@ class StatefulOperator:
         def to_iterable(item):
             if hasattr(item, "__iter__") or hasattr(item, "__getitem__"):
                 return list(item)
-            return [item, ]
+            return [
+                item,
+            ]
 
         # TODO: Don't evaluate if not needed
         interactive_val = self._get_state_values(context, state, coords)
@@ -1358,7 +1395,7 @@ class StatefulOperator:
 
     def _handle_pass_through(self, context, event):
         # Only pass through navigation events
-        if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE', "MOUSEMOVE"}:
+        if event.type in {"MIDDLEMOUSE", "WHEELUPMOUSE", "WHEELDOWNMOUSE", "MOUSEMOVE"}:
             return {"PASS_THROUGH"}
         return {"RUNNING_MODAL"}
 
@@ -1442,7 +1479,9 @@ class StatefulOperator:
         if use_create and not is_picked:
             if is_numeric:
                 # numeric edit is supported for one property only
-                values = [self.get_numeric_value(context, coords), ]
+                values = [
+                    self.get_numeric_value(context, coords),
+                ]
             elif not is_picked:
                 values = to_list(self._get_state_values(context, state, coords))
 
@@ -1492,7 +1531,6 @@ class StatefulOperator:
                 # This is needed in order for the geometry to update
                 self.evaluate_state(context, event, False)
         context.area.tag_redraw()
-
 
         if triggered and not ok:
             # Event was triggered on non-valid selection, cancel operator to avoid confusion
@@ -1657,7 +1695,7 @@ OperatorState = namedtuple(
         "types",  # Types the pointer property can accept
         "no_event",  # Trigger state without an event
         "interactive",  # Always evaluate state and confirm by user input
-        "use_create", # Enables or Disables creation of the element
+        "use_create",  # Enables or Disables creation of the element
         "state_func",  # Function to get the state property value from mouse coordinates
         "allow_prefill",  # Define if state should be filled from selected entities when invoked
         "parse_selection",  # Prefill Function which chooses entity to use for this stat
@@ -1683,7 +1721,7 @@ def state_from_args(name, **kwargs):
         "types": (),
         "no_event": False,
         "interactive": False,
-        "use_create" : True,
+        "use_create": True,
         "state_func": None,
         "allow_prefill": True,
         "parse_selection": None,
@@ -1759,26 +1797,34 @@ class GenericEntityOp(StatefulOperator):
             if hasattr(cls, "__annotations__"):
                 annotations = cls.__annotations__.copy()
 
-
             # handle SlvsPoint3D fallback props
             if any([t == class_defines.SlvsPoint3D for t in types]):
                 kwargs = {"size": 3, "subtype": "XYZ", "unit": "LENGTH"}
-                annotations[name + "_fallback"] = FloatVectorProperty(name=name, **kwargs)
+                annotations[name + "_fallback"] = FloatVectorProperty(
+                    name=name, **kwargs
+                )
 
             # handle SlvsPoint2D fallback props
             if any([t == class_defines.SlvsPoint2D for t in types]):
                 kwargs = {"size": 2, "subtype": "XYZ", "unit": "LENGTH"}
-                annotations[name + "_fallback"] = FloatVectorProperty(name=name, **kwargs)
+                annotations[name + "_fallback"] = FloatVectorProperty(
+                    name=name, **kwargs
+                )
 
             if any([t == class_defines.SlvsNormal3D for t in types]):
                 kwargs = {"size": 3, "subtype": "EULER", "unit": "ROTATION"}
-                annotations[name + "_fallback"] = FloatVectorProperty(name=name, **kwargs)
+                annotations[name + "_fallback"] = FloatVectorProperty(
+                    name=name, **kwargs
+                )
 
             for a in annotations.keys():
                 if hasattr(cls, a):
-                    raise NameError("Class {} already has attribute of name {}, cannot register implicit pointer properties".format(cls, a))
+                    raise NameError(
+                        "Class {} already has attribute of name {}, cannot register implicit pointer properties".format(
+                            cls, a
+                        )
+                    )
             setattr(cls, "__annotations__", annotations)
-
 
     def state_property(self, state_index):
         # Return state_prop / properties. Handle multiple types
@@ -1823,7 +1869,6 @@ class GenericEntityOp(StatefulOperator):
             if i == -1:
                 return None
             return bpy.context.scene.sketcher.entities.get(i)
-
 
     def set_state_pointer(self, values, index=None, implicit=False):
         retval = super().set_state_pointer(values, index=index, implicit=implicit)
@@ -1919,7 +1964,6 @@ class Operator2d(GenericEntityOp):
         pos = wp.matrix_basis.inverted() @ pos
         return Vector(pos[:-1])
 
-
     # create element depending on mode
     def create_element(self, context, values, state, state_data):
         sse = context.scene.sketcher.entities
@@ -1954,6 +1998,7 @@ class Operator2d(GenericEntityOp):
             return sse.add_ref_vertex_2d(ob, v_index, sketch)
         return getattr(self, state.pointer)
 
+
 class_defines.slvs_entity_pointer(Operator2d, "sketch")
 
 p3d_state1_doc = ("Location", "Set point's location.")
@@ -1968,15 +2013,12 @@ class View3D_OT_slvs_add_point3d(Operator, Operator3d):
 
     states = (
         state_from_args(
-            p3d_state1_doc[0],
-            description=p3d_state1_doc[1],
-            property="location",
+            p3d_state1_doc[0], description=p3d_state1_doc[1], property="location",
         ),
     )
 
     __doc__ = stateful_op_desc(
-        "Add a point in 3d space",
-        state_desc(*p3d_state1_doc, None),
+        "Add a point in 3d space", state_desc(*p3d_state1_doc, None),
     )
 
     def main(self, context):
@@ -2087,7 +2129,6 @@ class View3D_OT_slvs_add_workplane(Operator, Operator3d):
         ),
     )
 
-
     __doc__ = stateful_op_desc(
         "Add a workplane",
         state_desc(*wp_state1_doc, types_point_3d),
@@ -2150,14 +2191,13 @@ class View3D_OT_slvs_add_workplane_face(Operator, Operator3d):
     bl_label = "Add Solvespace Workplane"
     bl_options = {"REGISTER", "UNDO"}
 
-
     states = (
         state_from_args(
             wp_face_state1_doc[0],
             description=wp_face_state1_doc[1],
             use_create=False,
             pointer="face",
-            types=(bpy.types.MeshPolygon, ),
+            types=(bpy.types.MeshPolygon,),
             interactive=True,
         ),
     )
@@ -2187,7 +2227,6 @@ class View3D_OT_slvs_add_workplane_face(Operator, Operator3d):
         return True
 
 
-
 from . import gizmos
 
 sketch_state1_doc = ["Workplane", "Pick a workplane as base for the sketch."]
@@ -2198,7 +2237,6 @@ class View3D_OT_slvs_add_sketch(Operator, Operator3d):
     bl_idname = "view3d.slvs_add_sketch"
     bl_label = "Add Sketch"
     bl_options = {"UNDO"}
-
 
     states = (
         state_from_args(
@@ -2212,8 +2250,7 @@ class View3D_OT_slvs_add_sketch(Operator, Operator3d):
     )
 
     __doc__ = stateful_op_desc(
-        "Add a sketch",
-        state_desc(*sketch_state1_doc, (class_defines.SlvsWorkplane,)),
+        "Add a sketch", state_desc(*sketch_state1_doc, (class_defines.SlvsWorkplane,)),
     )
 
     def ensure_preselect_gizmo(self, context, _coords):
@@ -2266,15 +2303,12 @@ class View3D_OT_slvs_add_point2d(Operator, Operator2d):
 
     states = (
         state_from_args(
-            p2d_state1_doc[0],
-            description=p2d_state1_doc[1],
-            property="coordinates",
+            p2d_state1_doc[0], description=p2d_state1_doc[1], property="coordinates",
         ),
     )
 
     __doc__ = stateful_op_desc(
-        "Add a point to the active sketch",
-        state_desc(*p2d_state1_doc, None),
+        "Add a point to the active sketch", state_desc(*p2d_state1_doc, None),
     )
 
     def main(self, context):
@@ -2299,6 +2333,7 @@ class View3D_OT_slvs_add_point2d(Operator, Operator2d):
         if succeede:
             if self.has_coincident:
                 solve_system(context, sketch=self.sketch)
+
 
 types_point_2d = (
     *class_defines.point_2d,
@@ -2343,9 +2378,7 @@ class View3D_OT_slvs_add_line2d(Operator, Operator2d):
         wp = self.sketch.wp
         p1, p2 = self.get_point(context, 0), self.get_point(context, 1)
 
-        self.target = context.scene.sketcher.entities.add_line_2d(
-            p1, p2, self.sketch
-        )
+        self.target = context.scene.sketcher.entities.add_line_2d(p1, p2, self.sketch)
 
         # auto vertical/horizontal constraint
         constraints = context.scene.sketcher.constraints
@@ -2506,7 +2539,11 @@ class View3D_OT_slvs_add_arc2d(Operator, Operator2d):
         return True
 
     def main(self, context):
-        ct, p1, p2 = self.get_point(context, 0), self.get_point(context, 1), self.get_point(context, 2)
+        ct, p1, p2 = (
+            self.get_point(context, 0),
+            self.get_point(context, 1),
+            self.get_point(context, 2),
+        )
         sketch = self.sketch
         sse = context.scene.sketcher.entities
         arc = sse.add_arc(sketch.wp.nm, ct, p1, p2, sketch)
@@ -2600,10 +2637,7 @@ class View3D_OT_slvs_add_rectangle(Operator, Operator2d):
                     if val == None:
                         continue
                     ssc.add_distance(
-                        startpoint,
-                        line,
-                        sketch=self.sketch,
-                        init=True,
+                        startpoint, line, sketch=self.sketch, init=True,
                     )
 
         if succeede:
@@ -2638,13 +2672,8 @@ class View3D_OT_slvs_test(Operator, GenericEntityOp):
     bl_label = "Test StateOps"
     bl_options = {"REGISTER", "UNDO"}
 
-
     states = (
-        state_from_args(
-            "ob",
-            pointer="object",
-            types=(bpy.types.Object,),
-        ),
+        state_from_args("ob", pointer="object", types=(bpy.types.Object,),),
         state_from_args(
             "Pick Element",
             description="Pick an element to print",
@@ -2656,7 +2685,6 @@ class View3D_OT_slvs_test(Operator, GenericEntityOp):
                 bpy.types.MeshVertex,
                 bpy.types.MeshEdge,
                 bpy.types.MeshPolygon,
-
             ),
         ),
     )
@@ -2820,6 +2848,7 @@ def get_constraint_local_indices(entity, context):
 class View3D_OT_slvs_delete_entity(Operator, HighlightElement):
     """Delete Entity by index or based on the selection if index isn't provided
     """
+
     bl_idname = "view3d.slvs_delete_entity"
     bl_label = "Delete Solvespace Entity"
     bl_options = {"UNDO"}
@@ -2941,7 +2970,6 @@ class GenericConstraintOp(GenericEntityOp):
             else:
                 types = cls_constraint.signature[i]
 
-
             states.append(
                 state_from_args(
                     "Entity " + str(name_index),
@@ -2968,9 +2996,14 @@ class GenericConstraintOp(GenericEntityOp):
         constraint_type = cls.type
         cls_constraint = class_defines.SlvsConstraints.cls_from_type(constraint_type)
 
-        states = [state_desc(s.name, s.description, s.types) for s in cls.get_states_definition()]
+        states = [
+            state_desc(s.name, s.description, s.types)
+            for s in cls.get_states_definition()
+        ]
 
-        return stateful_op_desc("Add {} constraint".format(cls_constraint.label), *states)
+        return stateful_op_desc(
+            "Add {} constraint".format(cls_constraint.label), *states
+        )
 
     def fill_entities(self):
         c = self.target
@@ -3022,15 +3055,17 @@ class GenericConstraintOp(GenericEntityOp):
 
 
 # Dimensional constraints
-class VIEW3D_OT_slvs_add_distance(
-    Operator, GenericConstraintOp
-):
+class VIEW3D_OT_slvs_add_distance(Operator, GenericConstraintOp):
     bl_idname = "view3d.slvs_add_distance"
     bl_label = "Distance"
     bl_options = {"UNDO", "REGISTER"}
 
     value: FloatProperty(
-        name="Distance", subtype="DISTANCE", unit="LENGTH", min=0.0, options={"SKIP_SAVE"}
+        name="Distance",
+        subtype="DISTANCE",
+        unit="LENGTH",
+        min=0.0,
+        options={"SKIP_SAVE"},
     )
     align: EnumProperty(name="Alignment", items=class_defines.align_items)
     type = "DISTANCE"
@@ -3052,9 +3087,7 @@ class VIEW3D_OT_slvs_add_distance(
         row.prop(self, "align")
 
 
-class VIEW3D_OT_slvs_add_angle(
-    Operator, GenericConstraintOp
-):
+class VIEW3D_OT_slvs_add_angle(Operator, GenericConstraintOp):
     bl_idname = "view3d.slvs_add_angle"
     bl_label = "Angle"
     bl_options = {"UNDO", "REGISTER"}
@@ -3070,9 +3103,8 @@ class VIEW3D_OT_slvs_add_angle(
         if hasattr(self, "target"):
             self.target.draw_offset = 0.1 * context.region_data.view_distance
 
-class VIEW3D_OT_slvs_add_diameter(
-    Operator, GenericConstraintOp
-):
+
+class VIEW3D_OT_slvs_add_diameter(Operator, GenericConstraintOp):
     bl_idname = "view3d.slvs_add_diameter"
     bl_label = "Diameter"
     bl_options = {"UNDO", "REGISTER"}
@@ -3087,9 +3119,7 @@ class VIEW3D_OT_slvs_add_diameter(
 
 
 # Geomteric constraints
-class VIEW3D_OT_slvs_add_coincident(
-    Operator, GenericConstraintOp
-):
+class VIEW3D_OT_slvs_add_coincident(Operator, GenericConstraintOp):
     bl_idname = "view3d.slvs_add_coincident"
     bl_label = "Coincident"
     bl_options = {"UNDO", "REGISTER"}
@@ -3106,9 +3136,8 @@ class VIEW3D_OT_slvs_add_coincident(
             return True
         return super().main(context)
 
-class VIEW3D_OT_slvs_add_equal(
-    Operator, GenericConstraintOp
-):
+
+class VIEW3D_OT_slvs_add_equal(Operator, GenericConstraintOp):
     bl_idname = "view3d.slvs_add_equal"
     bl_label = "Equal"
     bl_options = {"UNDO", "REGISTER"}
@@ -3116,9 +3145,7 @@ class VIEW3D_OT_slvs_add_equal(
     type = "EQUAL"
 
 
-class VIEW3D_OT_slvs_add_vertical(
-    Operator, GenericConstraintOp
-):
+class VIEW3D_OT_slvs_add_vertical(Operator, GenericConstraintOp):
     bl_idname = "view3d.slvs_add_vertical"
     bl_label = "Vertical"
     bl_options = {"UNDO", "REGISTER"}
@@ -3126,9 +3153,7 @@ class VIEW3D_OT_slvs_add_vertical(
     type = "VERTICAL"
 
 
-class VIEW3D_OT_slvs_add_horizontal(
-    Operator, GenericConstraintOp
-):
+class VIEW3D_OT_slvs_add_horizontal(Operator, GenericConstraintOp):
     bl_idname = "view3d.slvs_add_horizontal"
     bl_label = "Horizontal"
     bl_options = {"UNDO", "REGISTER"}
@@ -3136,9 +3161,7 @@ class VIEW3D_OT_slvs_add_horizontal(
     type = "HORIZONTAL"
 
 
-class VIEW3D_OT_slvs_add_parallel(
-    Operator, GenericConstraintOp
-):
+class VIEW3D_OT_slvs_add_parallel(Operator, GenericConstraintOp):
     bl_idname = "view3d.slvs_add_parallel"
     bl_label = "Parallel"
     bl_options = {"UNDO", "REGISTER"}
@@ -3146,9 +3169,7 @@ class VIEW3D_OT_slvs_add_parallel(
     type = "PARALLEL"
 
 
-class VIEW3D_OT_slvs_add_perpendicular(
-    Operator, GenericConstraintOp
-):
+class VIEW3D_OT_slvs_add_perpendicular(Operator, GenericConstraintOp):
     bl_idname = "view3d.slvs_add_perpendicular"
     bl_label = "Perpendicular"
     bl_options = {"UNDO", "REGISTER"}
@@ -3156,9 +3177,7 @@ class VIEW3D_OT_slvs_add_perpendicular(
     type = "PERPENDICULAR"
 
 
-class VIEW3D_OT_slvs_add_tangent(
-    Operator, GenericConstraintOp, GenericEntityOp
-):
+class VIEW3D_OT_slvs_add_tangent(Operator, GenericConstraintOp, GenericEntityOp):
     bl_idname = "view3d.slvs_add_tangent"
     bl_label = "Tangent"
     bl_options = {"UNDO", "REGISTER"}
@@ -3166,9 +3185,7 @@ class VIEW3D_OT_slvs_add_tangent(
     type = "TANGENT"
 
 
-class VIEW3D_OT_slvs_add_midpoint(
-    Operator, GenericConstraintOp, GenericEntityOp
-):
+class VIEW3D_OT_slvs_add_midpoint(Operator, GenericConstraintOp, GenericEntityOp):
     bl_idname = "view3d.slvs_add_midpoint"
     bl_label = "Midpoint"
     bl_options = {"UNDO", "REGISTER"}
@@ -3176,9 +3193,7 @@ class VIEW3D_OT_slvs_add_midpoint(
     type = "MIDPOINT"
 
 
-class VIEW3D_OT_slvs_add_ratio(
-    Operator, GenericConstraintOp, GenericEntityOp
-):
+class VIEW3D_OT_slvs_add_ratio(Operator, GenericConstraintOp, GenericEntityOp):
 
     value: FloatProperty(
         name="Ratio", subtype="UNSIGNED", options={"SKIP_SAVE"}, min=0.0
@@ -3193,6 +3208,7 @@ class VIEW3D_OT_slvs_add_ratio(
 class View3D_OT_slvs_delete_constraint(Operator, HighlightElement):
     """Delete constraint by type and index
     """
+
     bl_idname = "view3d.slvs_delete_constraint"
     bl_label = "Delete Constraint"
     bl_options = {"UNDO"}
@@ -3283,9 +3299,6 @@ class View3D_OT_slvs_tweak_constraint_value_pos(Operator):
         return {"FINISHED"}
 
 
-from bl_operators.presets import AddPresetBase
-
-
 class SKETCHER_OT_add_preset_theme(AddPresetBase, Operator):
     """Add an Theme Preset"""
 
@@ -3316,12 +3329,15 @@ class SKETCHER_OT_add_preset_theme(AddPresetBase, Operator):
 
     preset_subdir = "bgs/theme"
 
-def mesh_from_temporary(mesh, name, existing_mesh=None):
-    import bmesh
+
+def mesh_from_temporary(mesh: Mesh, name: str, existing_mesh: bool = None):
+
     bm = bmesh.new()
     bm.from_mesh(mesh)
 
-    bmesh.ops.dissolve_limit(bm, angle_limit=math.radians(0.1), verts=bm.verts, edges=bm.edges)
+    bmesh.ops.dissolve_limit(
+        bm, angle_limit=math.radians(0.1), verts=bm.verts, edges=bm.edges
+    )
 
     if existing_mesh:
         existing_mesh.clear_geometry()
@@ -3343,7 +3359,8 @@ def _cleanup_data(sketch, mode):
         bpy.data.objects.remove(sketch.target_curve_object, do_unlink=True)
         sketch.target_curve_object = None
 
-def _link_unlink_object(scene, ob, keep):
+
+def _link_unlink_object(scene: Scene, ob: Object, keep: bool):
     objects = scene.collection.objects
     exists = ob.name in objects
 
@@ -3353,7 +3370,8 @@ def _link_unlink_object(scene, ob, keep):
     elif keep:
         objects.link(ob)
 
-def update_convertor_geometry(scene, sketch=None):
+
+def update_convertor_geometry(scene: Scene, sketch=None):
     coll = (sketch,) if sketch else scene.sketcher.entities.sketches
     for sketch in coll:
         mode = sketch.convert_type
@@ -3373,7 +3391,6 @@ def update_convertor_geometry(scene, sketch=None):
             # Clear curve data
             sketch.target_curve_object.data.splines.clear()
 
-
         # Convert geometry to curve data
         conv = convertors.BezierConvertor(scene, sketch)
         conv.run()
@@ -3389,7 +3406,13 @@ def update_convertor_geometry(scene, sketch=None):
         if mode == "MESH":
             # Create mesh data
             temp_mesh = sketch.target_curve_object.to_mesh()
-            mesh = mesh_from_temporary(temp_mesh, name, existing_mesh=(sketch.target_object.data if sketch.target_object else None))
+            mesh = mesh_from_temporary(
+                temp_mesh,
+                name,
+                existing_mesh=(
+                    sketch.target_object.data if sketch.target_object else None
+                ),
+            )
             sketch.target_curve_object.to_mesh_clear()
 
             # Create mesh object
@@ -3400,10 +3423,11 @@ def update_convertor_geometry(scene, sketch=None):
             else:
                 sketch.target_object.data = mesh
 
-
         _cleanup_data(sketch, mode)
 
-        target_ob = sketch.target_object if mode == "MESH" else sketch.target_curve_object
+        target_ob = (
+            sketch.target_object if mode == "MESH" else sketch.target_curve_object
+        )
         target_ob.matrix_world = sketch.wp.matrix_basis
 
         target_ob.sketch_index = sketch.slvs_index

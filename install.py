@@ -1,4 +1,6 @@
 import bpy
+from bpy.types import Operator
+
 from . import (
     functions,
     global_data,
@@ -10,7 +12,6 @@ from . import (
     ui,
     keymaps,
 )
-from bpy.types import Operator
 
 modules = (
     handlers,
@@ -48,7 +49,8 @@ def unregister_full():
 def check_module():
     # Note: Blender might be installed in a directory that needs admin rights and thus defaulting to a user installation.
     # That path however might not be in sys.path....
-    import sys, site
+    import sys
+    import site
 
     p = site.USER_SITE
     if p not in sys.path:
@@ -92,7 +94,10 @@ class View3D_OT_slvs_install_package(Operator):
                 check_module()
                 self.report({"INFO"}, "Package successfully installed")
             except ModuleNotFoundError:
-                self.report({"WARNING"}, "Package should be available but cannot be found, check console for detailed info. Try restarting blender, otherwise get in contact.")
+                self.report(
+                    {"WARNING"},
+                    "Package should be available but cannot be found, check console for detailed info. Try restarting blender, otherwise get in contact.",
+                )
             functions.show_package_info("py_slvs")
         else:
             self.report({"WARNING"}, "Cannot install package: {}".format(self.package))

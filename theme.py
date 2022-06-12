@@ -1,9 +1,9 @@
 import bpy
 from bpy.props import PointerProperty, FloatVectorProperty, FloatProperty
-from bpy.types import PropertyGroup
+from bpy.types import PropertyGroup, Context
 
 
-def update(self, context):
+def update(self, context: Context):
     for window in context.window_manager.windows:
         for area in window.screen.areas:
             if area.type != "VIEW_3D":

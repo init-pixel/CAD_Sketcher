@@ -1,4 +1,5 @@
 import logging
+
 from .functions import bpyEnum
 from .global_data import solver_state_items
 
@@ -10,8 +11,8 @@ class Solver:
     group_3d = 2
     start_sketch_groups = 3
 
-    # iterate over constraints of active group and lazily init required entities
     def __init__(self, context, sketch, all=False):
+        """ iterate over constraints of active group and lazily init required entities """
         self.context = context
         self.entities = []
         self.constraints = {}
@@ -24,12 +25,9 @@ class Solver:
         self.all = all
         self.failed_sketches = []
 
-
         group = self._get_group(sketch) if sketch else self.group_3d
         logger.info(
-            "--- Start solving ---\nAll:{}, Sketch:{}, g:{}".format(
-                all, sketch, group
-            )
+            "--- Start solving ---\nAll:{}, Sketch:{}, g:{}".format(all, sketch, group)
         )
         from py_slvs import slvs
 
@@ -62,20 +60,20 @@ class Solver:
         context = self.context
 
         # Initialize Entities
-        for e in context.scene.sketcher.entities.all:
-            self.entities.append(e)
+        for entity in context.scene.sketcher.entities.all:
+            self.entities.append(entity)
 
-            if e.fixed:
+            if entity.fixed:
                 group = self.group_fixed
-            elif hasattr(e, "sketch"):
-                group = self._get_group(e.sketch)
+            elif hasattr(entity, "sketch"):
+                group = self._get_group(entity.sketch)
             else:
                 group = self.group_3d
 
-            if self.tweak_entity and e == self.tweak_entity:
+            if self.tweak_entity and entity == self.tweak_entity:
                 wp = self.get_workplane()
-                if hasattr(e, "tweak"):
-                    e.tweak(self.solvesys, self.tweak_pos, group)
+                if hasattr(entity, "tweak"):
+                    entity.tweak(self.solvesys, self.tweak_pos, group)
                 else:
                     if not self.sketch:
                         params = [
@@ -91,25 +89,25 @@ class Solver:
                             wrkpln.py_data, *params, group=group
                         )
 
-                    e.create_slvs_data(self.solvesys, group=group)
+                    entity.create_slvs_data(self.solvesys, group=group)
 
                     from .class_defines import make_coincident
 
                     self.tweak_constraint = make_coincident(
-                        self.solvesys, p, e, wp, group
+                        self.solvesys, p, entity, wp, group
                     )
                     self.solvesys.addWhereDragged(p, wrkpln=wp, group=group)
                 continue
 
-            e.create_slvs_data(self.solvesys, group=group)
+            entity.create_slvs_data(self.solvesys, group=group)
 
         def _get_msg():
             msg = "Initialize entities:"
             for e in context.scene.sketcher.entities.all:
                 msg += "\n  - {}".format(e)
             return msg
-        logger.debug(_get_msg())
 
+        logger.debug(_get_msg())
 
         # Initialize Constraints
         for c in context.scene.sketcher.constraints.all:
@@ -134,9 +132,8 @@ class Solver:
             for c in context.scene.sketcher.constraints.all:
                 msg += "\n  - {}".format(c)
             return msg
+
         logger.debug(_get_msg())
-
-
 
     def tweak(self, entity, pos):
         logger.debug("tweak: {} to: {}".format(entity, pos))
@@ -194,14 +191,14 @@ class Solver:
             sse = self.context.scene.sketcher.entities
             sketches = [None, *sse.sketches]
         else:
-            sketches = [self.sketch,]
+            sketches = [
+                self.sketch,
+            ]
 
         for sketch in sketches:
             g = self._get_group(sketch)
             retval = self.solvesys.solve(
-                group=g,
-                reportFailed=report,
-                findFreeParams=False,
+                group=g, reportFailed=report, findFreeParams=False,
             )
 
             # NOTE: For some reason solve() might return undocumented values,
@@ -238,13 +235,13 @@ class Solver:
                         constr = self.constraints[i]
                         msg += "\n  - {}".format(constr)
                     return msg
-                logger.debug(_get_msg())
 
+                logger.debug(_get_msg())
 
         msg = ""
         for e in self.entities:
             # Skip entities that belong to a failed sketch
-            if hasattr(e, "sketch") and  e.sketch in self.failed_sketches:
+            if hasattr(e, "sketch") and e.sketch in self.failed_sketches:
                 continue
             # TODO: skip entities that aren't in active group
 

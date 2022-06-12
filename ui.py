@@ -1,5 +1,6 @@
 import bpy
 from bpy.types import Panel, Menu, UIList
+
 from . import operators, functions, class_defines
 
 
@@ -91,7 +92,11 @@ class VIEW3D_PT_sketcher(Panel):
             else:
                 dof = sketch.dof
                 dof_ok = dof <= 0
-                dof_msg = "Fully defined sketch" if dof_ok else "Degrees of freedom: " + str(dof)
+                dof_msg = (
+                    "Fully defined sketch"
+                    if dof_ok
+                    else "Degrees of freedom: " + str(dof)
+                )
                 dof_icon = "CHECKMARK" if dof_ok else "ERROR"
                 row.label(text=dof_msg, icon=dof_icon)
 
@@ -185,13 +190,10 @@ class VIEW3D_PT_sketcher_entities(Panel):
 
             # Select operator
             props = sub.operator(
-                operators.View3D_OT_slvs_select.bl_idname,
-                text=str(e),
-                emboss=False
-                )
+                operators.View3D_OT_slvs_select.bl_idname, text=str(e), emboss=False
+            )
             props.index = e.slvs_index
             props.highlight_hover = True
-
 
             # Right part
             sub = row.row()
@@ -202,8 +204,8 @@ class VIEW3D_PT_sketcher_entities(Panel):
                 operators.View3D_OT_slvs_context_menu.bl_idname,
                 text="",
                 icon="OUTLINER_DATA_GP_LAYER",
-                emboss=False
-                )
+                emboss=False,
+            )
             props.highlight_hover = True
             props.highlight_active = True
             props.index = e.slvs_index
@@ -213,8 +215,8 @@ class VIEW3D_PT_sketcher_entities(Panel):
                 operators.View3D_OT_slvs_delete_entity.bl_idname,
                 text="",
                 icon="X",
-                emboss=False
-                )
+                emboss=False,
+            )
             props.index = e.slvs_index
             props.highlight_hover = True
 
@@ -245,8 +247,7 @@ class VIEW3D_PT_sketcher_constraints(Panel):
 
             # Failed hint
             sub.label(
-                text="",
-                icon=("ERROR" if c.failed else "CHECKMARK"),
+                text="", icon=("ERROR" if c.failed else "CHECKMARK"),
             )
 
             index = context.scene.sketcher.constraints.get_index(c)
@@ -255,8 +256,8 @@ class VIEW3D_PT_sketcher_constraints(Panel):
             props = sub.operator(
                 operators.View3D_OT_slvs_context_menu.bl_idname,
                 text=str(c),
-                emboss=False
-                )
+                emboss=False,
+            )
             props.type = c.type
             props.index = index
             props.highlight_hover = True
@@ -271,7 +272,7 @@ class VIEW3D_PT_sketcher_constraints(Panel):
                 operators.View3D_OT_slvs_delete_constraint.bl_idname,
                 text="",
                 icon="X",
-                emboss=False
+                emboss=False,
             )
             props.type = c.type
             props.index = index
@@ -331,12 +332,15 @@ def sketch_selector(context, layout, is_header=False, show_selector=True):
         if show_selector:
             row.menu(VIEW3D_MT_sketches.bl_idname, text=name)
 
+
 def draw_object_context_menu(self, context):
     layout = self.layout
     ob = context.active_object
     row = layout.row()
 
-    props = row.operator(operators.View3D_OT_slvs_set_active_sketch.bl_idname, text="Edit Sketch")
+    props = row.operator(
+        operators.View3D_OT_slvs_set_active_sketch.bl_idname, text="Edit Sketch"
+    )
 
     if ob and ob.sketch_index != -1:
         row.active = True
@@ -361,8 +365,10 @@ def register():
 
     bpy.types.VIEW3D_MT_object_context_menu.prepend(draw_object_context_menu)
 
+
 def unregister():
+    bpy.types.VIEW3D_MT_object_context_menu.remove(draw_object_context_menu)
+
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
 
-    bpy.types.VIEW3D_MT_object_context_menu.remove(draw_object_context_menu)

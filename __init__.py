@@ -49,7 +49,6 @@ else:
 
 from tempfile import gettempdir
 from pathlib import Path
-
 import logging
 
 logger = logging.getLogger(__name__)
@@ -73,13 +72,12 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
-
 def update_logger():
     prefs = functions.get_prefs()
     logger.setLevel(prefs.logging_level)
 
 
-def ensure_addon_presets(force_write=False):
+def ensure_addon_presets(force_write: bool = False):
     import os
     import shutil
     import sys
@@ -113,9 +111,7 @@ def register():
     update_logger()
     icon_manager.load()
 
-    logger.info(
-        "Enabled CAD Sketcher base, version: {}".format(bl_info["version"])
-    )
+    logger.info("Enabled CAD Sketcher base, version: {}".format(bl_info["version"]))
 
     # Check Module and register all modules
     try:

@@ -1,13 +1,19 @@
-import bpy
 import logging
+
+import bpy
+from bpy.types import Context, Scene, Tuple
+
+from . import bl_info
 
 logger = logging.getLogger(__name__)
 
-def get_addon_version():
-    from .import bl_info
+
+def get_addon_version() -> Tuple[int]:
     return bl_info["version"]
 
-def write_addon_version(context):
+
+def write_addon_version(context: Context):
+    """ Write addon version to all scene's sketcher property group """
     version = get_addon_version()
 
     logger.debug("Writing addon version: " + str(version))
@@ -18,27 +24,29 @@ def write_addon_version(context):
         scene.sketcher.version = version
 
 
-def recalc_pointers(scene):
+def recalc_pointers(scene: Scene):
     """Updates type index of entities keeping local index as is"""
     from .class_defines import update_pointers, SlvsEntities
 
     msg = ""
     entities = list(scene.sketcher.entities.all)
-    for e in reversed(entities):
-        i = e.slvs_index
+    for entity in reversed(entities):
+        i = entity.slvs_index
         # scene.sketcher.entities._set_index(e)
-        SlvsEntities.recalc_type_index(e)
+        SlvsEntities.recalc_type_index(entity)
 
-        if i != e.slvs_index:
-            msg += "\n - {}: {} -> {}".format(e, i, e.slvs_index)
-            update_pointers(scene, i, e.slvs_index)
+        if i != entity.slvs_index:
+            msg += "\n - {}: {} -> {}".format(entity, i, entity.slvs_index)
+            update_pointers(scene, i, entity.slvs_index)
 
     if msg:
         logger.debug("Update entity indices:" + msg)
 
 
 def do_versioning(self):
-    from .import bl_info
+    """ Event handler """
+    from . import bl_info
+
     logger.debug("Check versioning")
 
     # Current blender version
@@ -68,17 +76,20 @@ def do_versioning(self):
         version = props.version[:]
 
         if version > current_version:
-            logger.warning("Scene {} was saved with a newer version of the addon".format(scene.name))
+            logger.warning(
+                "Scene {} was saved with a newer version of the addon".format(
+                    scene.name
+                )
+            )
             continue
 
         msg += "\n  - Update scene <{}> from version {}".format(scene.name, version)
 
-
         # if version <= (0, 11, 0):
-            # apply some changes that were introduced in v(0, 11, 0)
+        # apply some changes that were introduced in v(0, 11, 0)
 
         # if version <= (1, 0, 0):
-            # ...
+        # ...
         if version < (0, 23, 0):
             entities = scene.sketcher.entities
             entities.origin_axis_X = None
