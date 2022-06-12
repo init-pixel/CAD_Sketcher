@@ -1,7 +1,8 @@
 import logging
+from typing import Tuple
 
 import bpy
-from bpy.types import Context, Scene, Tuple
+from bpy.types import Context, Scene
 
 from . import bl_info
 

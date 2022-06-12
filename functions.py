@@ -11,7 +11,7 @@ from bpy_extras.view3d_utils import (
     location_3d_to_region_2d,
     region_2d_to_location_3d,
     region_2d_to_vector_3d,
-    view3d_utils,
+    region_2d_to_origin_3d,
 )
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
@@ -203,8 +203,8 @@ def get_picking_origin_dir(context: Context, coords: Vector) -> Tuple[Vector, Ve
     viewlayer = context.view_layer
 
     # get the ray from the viewport and mouse
-    view_vector = view3d_utils.region_2d_to_vector_3d(region, rv3d, coords)
-    ray_origin = view3d_utils.region_2d_to_origin_3d(region, rv3d, coords)
+    view_vector = region_2d_to_vector_3d(region, rv3d, coords)
+    ray_origin = region_2d_to_origin_3d(region, rv3d, coords)
     return ray_origin, view_vector
 
 
@@ -215,8 +215,8 @@ def get_picking_origin_end(context: Context, coords: Vector) -> Tuple[Vector, Ve
     viewlayer = context.view_layer
 
     # get the ray from the viewport and mouse
-    view_vector = view3d_utils.region_2d_to_vector_3d(region, rv3d, coords)
-    ray_origin = view3d_utils.region_2d_to_origin_3d(region, rv3d, coords)
+    view_vector = region_2d_to_vector_3d(region, rv3d, coords)
+    ray_origin = region_2d_to_origin_3d(region, rv3d, coords)
 
     # view vector needs to be scaled and translated
     end_point = view_vector * context.space_data.clip_end + ray_origin
