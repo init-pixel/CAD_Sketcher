@@ -6,7 +6,7 @@ import re
 from typing import Any, List, Tuple, Union
 import bpy
 import bmesh
-from bpy.types import Context
+from bpy.types import Context, RegionView3D
 from bpy_extras.view3d_utils import (
     location_3d_to_region_2d,
     region_2d_to_location_3d,
@@ -259,7 +259,8 @@ def get_line_intersection(a1, b1, c1, a2, b2, c2) -> Vector:
         return Vector((x, y))
 
 
-def get_scale_from_pos(co: Vector, rv3d) -> Vector:
+def get_scale_from_pos(co: Vector, rv3d: RegionView3D) -> Vector:
+
     if rv3d.view_perspective == "ORTHO":
         scale = rv3d.view_distance
     else:
