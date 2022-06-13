@@ -226,7 +226,7 @@ class VIEW3D_GT_slvs_constraint_value(ConstraintGizmo, Gizmo):
         self.height = 0
 
 
-class ConstarintGizmoGeneric(ConstraintGizmo):
+class ConstraintGizmoGeneric(ConstraintGizmo):
     def _update_matrix_basis(self, constr):
         self.matrix_basis = constr.matrix_basis()
 
@@ -279,7 +279,7 @@ def get_arrow_size(dist, scale):
     return length, width
 
 
-class VIEW3D_GT_slvs_distance(Gizmo, ConstarintGizmoGeneric):
+class VIEW3D_GT_slvs_distance(Gizmo, ConstraintGizmoGeneric):
     bl_idname = "VIEW3D_GT_slvs_distance"
     type = class_defines.SlvsDistance.type
 
@@ -379,7 +379,7 @@ class VIEW3D_GT_slvs_distance(Gizmo, ConstarintGizmoGeneric):
         self.custom_shape = self.new_custom_shape("LINES", coords)
 
 
-class VIEW3D_GT_slvs_angle(Gizmo, ConstarintGizmoGeneric):
+class VIEW3D_GT_slvs_angle(Gizmo, ConstraintGizmoGeneric):
     bl_idname = "VIEW3D_GT_slvs_angle"
     type = class_defines.SlvsAngle.type
 
@@ -449,7 +449,7 @@ class VIEW3D_GT_slvs_angle(Gizmo, ConstarintGizmoGeneric):
         self.custom_shape = self.new_custom_shape("LINES", coords)
 
 
-class VIEW3D_GT_slvs_diameter(Gizmo, ConstarintGizmoGeneric):
+class VIEW3D_GT_slvs_diameter(Gizmo, ConstraintGizmoGeneric):
     bl_idname = "VIEW3D_GT_slvs_diameter"
     type = class_defines.SlvsDiameter.type
 
@@ -568,7 +568,7 @@ def generic_constraints(context: Context):
 
 # TODO: This could already Skip entities and constraints that are not active
 # TODO: only store indices instead of actual objects
-def constraints_mapping(context):
+def constraints_mapping(context: Context):
     # Get a constraints per entity mapping
     entities = []
     constraints = []

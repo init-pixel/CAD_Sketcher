@@ -1,5 +1,5 @@
 import bpy
-from bpy.types import Panel, Menu, UIList, Context
+from bpy.types import Panel, Menu, UIList, Context, UILayout
 
 from . import operators, functions, class_defines
 
@@ -313,7 +313,12 @@ class VIEW3D_MT_sketches(Menu):
             ).index = sk.slvs_index
 
 
-def sketch_selector(context, layout, is_header=False, show_selector=True):
+def sketch_selector(
+    context: Context,
+    layout: UILayout,
+    is_header: bool = False,
+    show_selector: bool = True,
+):
     row = layout.row(align=is_header)
     index = context.scene.sketcher.active_sketch_i
     name = "Sketches"
@@ -347,7 +352,7 @@ def sketch_selector(context, layout, is_header=False, show_selector=True):
             row.menu(VIEW3D_MT_sketches.bl_idname, text=name)
 
 
-def draw_object_context_menu(self, context):
+def draw_object_context_menu(self, context: Context):
     layout = self.layout
     ob = context.active_object
     row = layout.row()
@@ -369,7 +374,8 @@ classes = [
     VIEW3D_MT_sketches,
 ]
 
-classes += [panel for panel in SketcherVIEW3DPanel.__subclasses__()]
+# classes += [panel for panel in SketcherVIEW3DPanel.__subclasses__()]
+classes.extend(panel for panel in SketcherVIEW3DPanel.__subclasses__())
 
 
 def register():

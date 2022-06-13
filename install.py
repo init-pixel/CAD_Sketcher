@@ -1,5 +1,5 @@
 import bpy
-from bpy.types import Operator
+from bpy.types import Operator, Context
 
 from . import (
     functions,
@@ -74,10 +74,10 @@ class View3D_OT_slvs_install_package(Operator):
     package: bpy.props.StringProperty(subtype="FILE_PATH")
 
     @classmethod
-    def poll(cls, context):
+    def poll(cls, context: Context):
         return not global_data.registered
 
-    def execute(self, context):
+    def execute(self, context: Context):
         if not functions.ensure_pip():
             self.report(
                 {"WARNING"},

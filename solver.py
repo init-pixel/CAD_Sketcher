@@ -1,5 +1,7 @@
 import logging
 
+from bpy.types import Context
+
 from .functions import bpyEnum
 from .global_data import solver_state_items
 
@@ -11,7 +13,7 @@ class Solver:
     group_3d = 2
     start_sketch_groups = 3
 
-    def __init__(self, context, sketch, all=False):
+    def __init__(self, context: Context, sketch, all=False):
         """ iterate over constraints of active group and lazily init required entities """
         self.context = context
         self.entities = []
@@ -254,6 +256,6 @@ class Solver:
         return self.ok
 
 
-def solve_system(context, sketch=None):
+def solve_system(context: Context, sketch=None):
     solver = Solver(context, sketch)
     return solver.solve()

@@ -1,10 +1,13 @@
 import logging
+
+from bpy.types import Scene
+
 from . import class_defines
 
 logger = logging.getLogger(__name__)
 
 
-def point_entity_mapping(scene):
+def point_entity_mapping(scene: Scene):
     """ Get a entities per point mapping """
     points = []
     entities = []
@@ -28,8 +31,9 @@ def point_entity_mapping(scene):
     return points, entities
 
 
-# TODO: make generic path creator class?
 class BezierConvertor:
+    """ TODO: make generic path creator class? """
+
     def __init__(self, scene, sketch):
         self.sketch_entities = []
         self.paths = []

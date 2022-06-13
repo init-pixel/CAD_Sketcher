@@ -1,5 +1,6 @@
 import os
 
+import bpy
 from bpy.types import WorkSpaceTool, UILayout, Context, Operator
 
 from . import operators, gizmos
@@ -377,8 +378,6 @@ tools = (
         {"after": {View3D_T_slvs_add_workplane_face.bl_idname}},
     ),
 )
-
-import bpy
 
 
 def register():
