@@ -1,3 +1,4 @@
+from collections import deque
 import math
 from math import pi, cos, sin, tau
 import subprocess
@@ -24,6 +25,7 @@ def get_prefs():
 
 
 def install_pip():
+    """ Subprocess call ensurepip module"""
     cmd = [global_data.PYPATH, "-m", "ensurepip", "--upgrade"]
     return not subprocess.call(cmd)
 
@@ -33,9 +35,13 @@ def update_pip():
     return not subprocess.call(cmd)
 
 
-def install_package(package: str):
+def install_package(package: str, no_deps: bool = True):
     update_pip()
-    cmd = [global_data.PYPATH, "-m", "pip", "install", "--upgrade"] + package.split(" ")
+    base_call = [global_data.PYPATH, "-m", "pip", "install"]
+    args = ["--upgrade"]
+    if no_deps:
+        args += ["--no-deps"]
+    cmd = base_call + args + package.split(" ")
     ret_val = subprocess.call(cmd)
     return ret_val == 0
 
@@ -55,6 +61,7 @@ def show_package_info(package: str):
 
 
 def draw_circle_2d(cx: float, cy: float, r: float, num_segments: int):
+    """ NOTE: Not used?"""
     # circle outline
     # NOTE: also see gpu_extras.presets.draw_circle_2d
     theta = 2 * pi / num_segments
@@ -154,7 +161,8 @@ def coords_arc_2d(
     offset: float = 0.0,
     type="LINE_STRIP",
 ):
-    coords = []
+    # coords = []
+    coords = deque()
     segments = max(segments, 1)
 
     m = (1.0 / segments) * angle
@@ -392,14 +400,15 @@ def breakdown_index(index: int):
 
 
 def bvhtree_from_object(object: Context) -> BVHTree:
-    bm = bmesh.new()
-
     depsgraph = bpy.context.evaluated_depsgraph_get()
     object_eval = object.evaluated_get(depsgraph)
     mesh = object_eval.to_mesh()
+
+    bm = bmesh.new()
     bm.from_mesh(mesh)
     bm.transform(object.matrix_world)
 
     bvhtree = BVHTree.FromBMesh(bm)
     object_eval.to_mesh_clear()
+    bm.free()
     return bvhtree
