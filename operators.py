@@ -21,7 +21,8 @@ from mathutils import Vector
 from mathutils.geometry import intersect_line_plane
 
 from .solver import Solver, solve_system
-from . import global_data, functions, class_defines, convertors
+from . import global_data, functions, class_defines, convertors, preferences
+from .functions import get_prefs
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +217,8 @@ def select_all(context: Context):
 
 class View3D_OT_slvs_select(Operator, HighlightElement):
     """
+    TODO: Add selection modes
+
     Select an entity
 
     Either the entity specified by the index property or the hovered index
@@ -227,11 +230,6 @@ class View3D_OT_slvs_select(Operator, HighlightElement):
     bl_label = "Select Solvespace Entities"
 
     index: IntProperty(name="Index", default=-1)
-    # TODO: Add selection modes
-
-    @classmethod
-    def poll(cls, context: Context):
-        return True
 
     def execute(self, context: Context):
         index = (
@@ -274,10 +272,6 @@ class View3D_OT_slvs_context_menu(Operator, HighlightElement):
     type: StringProperty(name="Type", options={"SKIP_SAVE"})
     index: IntProperty(name="Index", default=-1, options={"SKIP_SAVE"})
     delayed: BoolProperty(default=True)
-
-    @classmethod
-    def poll(cls, context: Context):
-        return True
 
     @classmethod
     def description(cls, context: Context, properties: PropertyGroup):
@@ -371,10 +365,6 @@ class View3D_OT_slvs_show_solver_state(Operator):
 
     index: IntProperty(default=-1)
 
-    @classmethod
-    def poll(cls, context: Context):
-        return True
-
     def execute(self, context: Context):
         index = self.index
         if index == -1:
@@ -402,7 +392,7 @@ class View3D_OT_slvs_solve(Operator):
 
     all: BoolProperty(name="Solve All", options={"SKIP_SAVE"})
 
-    def execute(self, context):
+    def execute(self, context: Context):
         sketch = context.scene.sketcher.active_sketch
         solver = Solver(context, sketch, all=self.all)
         ok = solver.solve()
@@ -417,24 +407,12 @@ class View3D_OT_slvs_solve(Operator):
         return {"FINISHED"}
 
 
-def add_point(context, pos, name=""):
-    data = bpy.data
-    ob = data.objects.new(name, None)
-    ob.location = pos
-    context.collection.objects.link(ob)
-    return ob
-
-
 class View3D_OT_slvs_tweak(Operator):
     """Tweak the hovered element"""
 
     bl_idname = "view3d.slvs_tweak"
     bl_label = "Tweak Solvespace Entities"
     bl_options = {"UNDO"}
-
-    @classmethod
-    def poll(cls, context: Context):
-        return True
 
     def invoke(self, context: Context, event):
         index = global_data.hover
@@ -528,7 +506,7 @@ class VIEW3D_OT_slvs_write_selection_texture(Operator):
     bl_idname = "view3d.slvs_write_selection_texture"
     bl_label = "Write selection texture"
 
-    def execute(self, context):
+    def execute(self, context: Context):
         if context.area.type != "VIEW_3D":
             self.report({"WARNING"}, "View3D not found, cannot run operator")
             return {"CANCELLED"}
@@ -1320,7 +1298,7 @@ class StatefulOperator:
                     values = to_list(ret_values)
                     self.set_state_pointer(values, index=i, implicit=True)
 
-    def execute(self, context):
+    def execute(self, context: Context):
         self.redo_states(context)
         ok = self.main(context)
         return self._end(context, ok)
@@ -2423,7 +2401,13 @@ class View3D_OT_slvs_add_circle2d(Operator, Operator2d):
     bl_label = "Add Solvespace 2D Circle"
     bl_options = {"REGISTER", "UNDO"}
 
-    radius: FloatProperty(name="Radius", subtype="DISTANCE", unit="LENGTH")
+    radius: FloatProperty(
+        name="Radius",
+        subtype="DISTANCE",
+        unit="LENGTH",
+        precision=5,
+        # precision=get_prefs().decimal_precision,
+    )
 
     states = (
         state_from_args(
@@ -2706,7 +2690,7 @@ class View3D_OT_invoke_tool(Operator):
     # TODO: get the operator from tool attribute (tool.bl_operator)?
     operator: StringProperty(name="Operator ID")
 
-    def execute(self, context):
+    def execute(self, context: Context):
         bpy.ops.wm.tool_set_by_id(name=self.tool_name)
 
         # get the tool operator props
@@ -2785,11 +2769,7 @@ class View3D_OT_slvs_set_active_sketch(Operator):
 
     index: IntProperty(default=-1)
 
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def execute(self, context):
+    def execute(self, context: Context):
         return activate_sketch(context, self.index, self)
 
 
@@ -2858,10 +2838,6 @@ class View3D_OT_slvs_delete_entity(Operator, HighlightElement):
 
     index: IntProperty(default=-1)
 
-    @classmethod
-    def poll(cls, context):
-        return True
-
     @staticmethod
     def main(context, index, operator):
         entities = context.scene.sketcher.entities
@@ -2909,7 +2885,7 @@ class View3D_OT_slvs_delete_entity(Operator, HighlightElement):
         entities = context.scene.sketcher.entities
         entities.remove(entity.slvs_index)
 
-    def execute(self, context):
+    def execute(self, context: Context):
         index = self.index
 
         if index != -1:
@@ -2940,10 +2916,6 @@ state_docstr = "Pick entity to constrain."
 class GenericConstraintOp(GenericEntityOp):
     initialized: BoolProperty(options={"SKIP_SAVE", "HIDDEN"})
     _entity_prop_names = ("entity1", "entity2", "entity3", "entity4")
-
-    @classmethod
-    def poll(cls, context):
-        return True
 
     def _available_entities(self):
         # Gets entities that are already set
@@ -3218,17 +3190,13 @@ class View3D_OT_slvs_delete_constraint(Operator, HighlightElement):
     index: IntProperty(default=-1)
 
     @classmethod
-    def poll(cls, context):
-        return True
-
-    @classmethod
     def description(cls, context, properties):
         cls.handle_highlight_hover(context, properties)
         if properties.type:
             return "Delete: " + properties.type.capitalize()
         return ""
 
-    def execute(self, context):
+    def execute(self, context: Context):
         constraints = context.scene.sketcher.constraints
 
         # NOTE: It's not really necessary to first get the
@@ -3253,10 +3221,6 @@ class View3D_OT_slvs_tweak_constraint_value_pos(Operator):
 
     type: StringProperty(name="Type")
     index: IntProperty(default=-1)
-
-    @classmethod
-    def poll(cls, context):
-        return True
 
     def invoke(self, context, event):
         self.tweak = False
@@ -3294,7 +3258,7 @@ class View3D_OT_slvs_tweak_constraint_value_pos(Operator):
         context.space_data.show_gizmo = True
         return {"RUNNING_MODAL"}
 
-    def execute(self, context):
+    def execute(self, context: Context):
         bpy.ops.view3d.slvs_context_menu(type=self.type, index=self.index)
         return {"FINISHED"}
 
