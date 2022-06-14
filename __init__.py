@@ -51,6 +51,8 @@ from tempfile import gettempdir
 from pathlib import Path
 import logging
 
+from . import addon_updater_ops
+
 logger = logging.getLogger(__name__)
 
 # Clear handlers
@@ -104,6 +106,7 @@ def ensure_addon_presets(force_write: bool = False):
 
 def register():
     # Register base
+    # addon_updater_ops.register(bl_info)
     ensure_addon_presets()
     theme.register()
     preferences.register()
@@ -124,6 +127,7 @@ def register():
 
 
 def unregister():
+    # addon_updater_ops.unregister(bl_info)
     install.unregister()
     preferences.unregister()
     theme.unregister()
