@@ -106,6 +106,18 @@ class Preferences(AddonPreferences):
     bl_idname = __package__
     theme_settings: PointerProperty(type=theme.ThemeSettings)
 
+    def _toggle_debug_options(self, context: Context):
+        """ Callback from debug toggle, reset debug props to defaults """
+        debug_props = (
+            context.sketcher.show_origin,
+            self.hide_inactive_constraints,
+            self.all_entities_selectable,
+            self.force_redraw,
+        )
+        if not self.show_debug_settings:
+            for prop in debug_props:
+                prop = prop.default
+
     show_debug_settings: BoolProperty(
         name="Show Debug Settings", default=False,
     )
@@ -128,12 +140,20 @@ class Preferences(AddonPreferences):
         default=2,
     )
     hide_inactive_constraints: BoolProperty(
-        name="Hide inactive Constraints", default=True, update=functions.update_cb
+        name="Hide inactive Constraints",
+        default=True,
+        update=functions.update_cb,
+        options={"SKIP_SAVE"},
     )
     all_entities_selectable: BoolProperty(
-        name="Make all Entities Selectable", update=functions.update_cb
+        name="Make all Entities Selectable",
+        default=False,
+        update=functions.update_cb,
+        options={"SKIP_SAVE"},
     )
-    force_redraw: BoolProperty(name="Force Entity Redraw", default=True)
+    force_redraw: BoolProperty(
+        name="Force Entity Redraw", default=True, options={"SKIP_SAVE"}
+    )
 
     decimal_precision: IntProperty(
         name="Decimal Precision",
