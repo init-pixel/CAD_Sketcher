@@ -3,11 +3,13 @@ import math
 from math import pi, cos, sin, tau
 import subprocess
 import re
+import site
+from importlib import reload
 
 from typing import Any, List, Tuple, Union
 import bpy
 import bmesh
-from bpy.types import Context, RegionView3D
+from bpy.types import Context, RegionView3D, Object
 from bpy_extras.view3d_utils import (
     location_3d_to_region_2d,
     region_2d_to_location_3d,
@@ -35,6 +37,11 @@ def update_pip():
     return not subprocess.call(cmd)
 
 
+def refresh_path():
+    """ refresh path to packages found after install """
+    reload(site)
+
+
 def install_package(package: str, no_deps: bool = True):
     update_pip()
     base_call = [global_data.PYPATH, "-m", "pip", "install"]
@@ -43,6 +50,7 @@ def install_package(package: str, no_deps: bool = True):
         args += ["--no-deps"]
     cmd = base_call + args + package.split(" ")
     ret_val = subprocess.call(cmd)
+    refresh_path()
     return ret_val == 0
 
 
@@ -58,6 +66,15 @@ def show_package_info(package: str):
     except Exception as e:
         print(e)
         pass
+
+
+def add_new_empty(context, location: Vector, name="") -> Object:
+    """ NOTE: No used """
+    data = bpy.data
+    empty = data.objects.new(name, None)
+    empty.location = location
+    context.collection.objects.link(empty)
+    return empty
 
 
 def draw_circle_2d(cx: float, cy: float, r: float, num_segments: int):
