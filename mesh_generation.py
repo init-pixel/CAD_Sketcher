@@ -5,14 +5,35 @@ TODO: Caching mechansm for mesh data?
 
 """
 
+from pathlib import Path
 from collections import deque
 from typing import Iterable, List, Tuple
+from dataclasses import dataclass
+import numpy as np
 
 import bpy
 import bmesh
 from bmesh.types import BMesh, BMVert, BMFace
 from mathutils import Vector
 from gpu.types import GPUIndexBuf, GPUVertBuf, GPUVertFormat
+
+CACHE_LOCATION = Path(__file__).parent / "cache"
+
+
+@dataclass
+class np_mesh:
+    """ numpy representation of mesh for caching """
+
+    verts: np.ndarray
+    normals: np.ndarray
+    faces: np.ndarray
+
+    @classmethod
+    def from_file(cls, filename: str):
+        ...
+
+    def write(self, filename: str):
+        ...
 
 
 def face_vert_indices(face: BMFace) -> List[int]:
