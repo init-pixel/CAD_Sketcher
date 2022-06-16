@@ -31,7 +31,7 @@ def point_entity_mapping(scene: Scene):
     return points, entities
 
 
-class BezierConvertor:
+class BezierConverter:
     """ TODO: make generic path creator class? """
 
     def __init__(self, scene, sketch):
@@ -215,3 +215,4 @@ class BezierConvertor:
                     s, previous_point, end, invert_direction, **kwargs
                 )
                 index += sub_segment_count
+
