@@ -23,6 +23,8 @@ from mathutils.geometry import intersect_line_plane
 from .solver import Solver, solve_system
 from . import global_data, functions, class_defines, convertors, preferences
 from .functions import get_prefs
+from .global_data import WpReq
+from . import gizmos
 
 logger = logging.getLogger(__name__)
 
@@ -1712,9 +1714,6 @@ def state_from_args(name, **kwargs):
     return OperatorState(**kw)
 
 
-from bpy_extras.view3d_utils import region_2d_to_location_3d, region_2d_to_vector_3d
-
-
 class GenericEntityOp(StatefulOperator):
     def pick_element(self, context, coords):
         retval = super().pick_element(context, coords)
@@ -2205,8 +2204,6 @@ class View3D_OT_slvs_add_workplane_face(Operator, Operator3d):
         return True
 
 
-from . import gizmos
-
 sketch_state1_doc = ["Workplane", "Pick a workplane as base for the sketch."]
 
 # TODO:
@@ -2231,23 +2228,23 @@ class View3D_OT_slvs_add_sketch(Operator, Operator3d):
         "Add a sketch", state_desc(*sketch_state1_doc, (class_defines.SlvsWorkplane,)),
     )
 
-    def ensure_preselect_gizmo(self, context, _coords):
+    def ensure_preselect_gizmo(self, context: Context, _coords):
         tool = context.workspace.tools.from_space_view3d_mode(context.mode)
         if tool.widget != gizmos.VIEW3D_GGT_slvs_preselection.bl_idname:
             bpy.ops.wm.tool_set_by_id(name="sketcher.slvs_select")
         return True
 
-    def prepare_origin_elements(self, context, _coords):
+    def prepare_origin_elements(self, context: Context, _coords):
         context.scene.sketcher.entities.ensure_origin_elements(context)
         return True
 
-    def init(self, context, event):
+    def init(self, context: Context, event: Event):
         self.ensure_preselect_gizmo(context, None)
         self.prepare_origin_elements(context, None)
         bpy.ops.ed.undo_push(message="Ensure Origin Elements")
         context.scene.sketcher.show_origin = True
 
-    def main(self, context):
+    def main(self, context: Context):
         sse = context.scene.sketcher.entities
         sketch = sse.add_sketch(self.wp)
 
@@ -2908,11 +2905,6 @@ class View3D_OT_slvs_delete_entity(Operator, HighlightElement):
         return {"FINISHED"}
 
 
-from .global_data import WpReq
-
-state_docstr = "Pick entity to constrain."
-
-
 class GenericConstraintOp(GenericEntityOp):
     initialized: BoolProperty(options={"SKIP_SAVE", "HIDDEN"})
     _entity_prop_names = ("entity1", "entity2", "entity3", "entity4")
@@ -2942,6 +2934,7 @@ class GenericConstraintOp(GenericEntityOp):
             else:
                 types = cls_constraint.signature[i]
 
+            state_docstr = "Pick entity to constrain."
             states.append(
                 state_from_args(
                     "Entity " + str(name_index),
