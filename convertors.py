@@ -215,4 +215,3 @@ class BezierConverter:
                     s, previous_point, end, invert_direction, **kwargs
                 )
                 index += sub_segment_count
-
