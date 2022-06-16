@@ -419,7 +419,7 @@ class View3D_OT_slvs_tweak(Operator):
     def invoke(self, context: Context, event):
         index = global_data.hover
         # TODO: hover should be -1 if nothing is hovered, not None!
-        if index == None or index == -1:
+        if index is None or index == -1:
             return {"CANCELLED"}
 
         entity = context.scene.sketcher.entities.get(index)
@@ -679,7 +679,7 @@ def get_mesh_element(
 
 
 def to_list(val):
-    if val == None:
+    if val is None:
         return []
     if type(val) in (list, tuple):
         return list(val)
@@ -824,7 +824,7 @@ class StatefulOperator:
         pointer_type = data["type"]
 
         def get_value(index):
-            if values == None:
+            if values is None:
                 return None
             return values[index]
 
@@ -892,11 +892,11 @@ class StatefulOperator:
         return ob.name, index
 
     def get_property(self, index=None):
-        if index == None:
+        if index is None:
             index = self.state_index
         state = self.get_states()[index]
 
-        if state.property == None:
+        if state.property is None:
             return None
 
         if callable(state.property):
@@ -1331,7 +1331,7 @@ class StatefulOperator:
             elif type == "INT":
                 value = int(input)
 
-            if value == None:
+            if value is None:
                 return prop.default
             return value
 
@@ -1346,7 +1346,7 @@ class StatefulOperator:
 
         # TODO: Don't evaluate if not needed
         interactive_val = self._get_state_values(context, state, coords)
-        if interactive_val == None:
+        if interactive_val is None:
             interactive_val = [None] * size
         else:
             interactive_val = to_iterable(interactive_val)
@@ -1430,7 +1430,7 @@ class StatefulOperator:
         if not position_cb:
             return None
         pos_val = position_cb(context, coords)
-        if pos_val == None:
+        if pos_val is None:
             return None
         return pos_val
 
@@ -1714,6 +1714,16 @@ def state_from_args(name, **kwargs):
     return OperatorState(**kw)
 
 
+def get_scene_entites(context: Context) -> class_defines.SlvsEntities:
+    """ Get scene entities """
+    return context.scene.sketcher.entities
+
+
+def get_scene_constraints(context: Context) -> class_defines.SlvsConstraints:
+    """ Get scene constraints """
+    return context.scene.sketcher.constraints
+
+
 class GenericEntityOp(StatefulOperator):
     def pick_element(self, context, coords):
         retval = super().pick_element(context, coords)
@@ -1864,7 +1874,7 @@ class GenericEntityOp(StatefulOperator):
         if issubclass(pointer_type, class_defines.SlvsGenericEntity):
             value = values[0] if values != None else None
 
-            if value == None:
+            if value is None:
                 i = -1
             elif implicit:
                 i = value
@@ -1935,7 +1945,7 @@ class Operator2d(GenericEntityOp):
         wp = self.sketch.wp
         origin, end_point = functions.get_picking_origin_end(context, coords)
         pos = intersect_line_plane(origin, end_point, wp.p1.location, wp.normal)
-        if pos == None:
+        if pos is None:
             return None
 
         pos = wp.matrix_basis.inverted() @ pos
@@ -2432,7 +2442,7 @@ class View3D_OT_slvs_add_circle2d(Operator, Operator2d):
     def get_radius(self, context, coords):
         wp = self.sketch.wp
         pos = self.state_func(context, coords)
-        if pos == None:
+        if pos is None:
             return None
 
         delta = Vector(pos) - self.ct.co
@@ -2500,7 +2510,7 @@ class View3D_OT_slvs_add_arc2d(Operator, Operator2d):
 
     def get_endpoint_pos(self, context, coords):
         mouse_pos = self.state_func(context, coords)
-        if mouse_pos == None:
+        if mouse_pos is None:
             return None
 
         # Get angle to mouse pos
@@ -2615,7 +2625,7 @@ class View3D_OT_slvs_add_rectangle(Operator, Operator2d):
                 # constrain distance
                 startpoint = getattr(self, self.get_states()[0].pointer)
                 for val, line in zip(input, (self.lines[1], self.lines[2])):
-                    if val == None:
+                    if val is None:
                         continue
                     ssc.add_distance(
                         startpoint, line, sketch=self.sketch, init=True,
@@ -2635,7 +2645,7 @@ class View3D_OT_slvs_add_rectangle(Operator, Operator2d):
             orig = getattr(self, self.get_states()[0].pointer).co
 
             for i, val in enumerate(input):
-                if val == None:
+                if val is None:
                     continue
                 value[i] = orig[i] + val
 
@@ -3091,7 +3101,7 @@ class VIEW3D_OT_slvs_add_coincident(Operator, GenericConstraintOp):
 
     type = "COINCIDENT"
 
-    def main(self, context):
+    def main(self, context: Context):
         p1, p2 = self.entity1, self.entity2
         if all([e.is_point() for e in (p1, p2)]):
             # Implicitly merge points

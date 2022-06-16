@@ -1,5 +1,6 @@
-import logging
 import math
+from typing import Union, Tuple, Type
+import logging
 
 import bpy
 from bpy.types import PropertyGroup, Context
@@ -1339,8 +1340,6 @@ entity_collections = (
     "arcs",
     "circles",
 )
-
-from typing import Union, Tuple, Type
 
 
 class SlvsEntities(PropertyGroup):
