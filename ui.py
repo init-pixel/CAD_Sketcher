@@ -1,7 +1,9 @@
 import bpy
 from bpy.types import Panel, Menu, UIList, Context, UILayout
 
-from . import operators, functions, class_defines
+from . import operators
+from . import functions
+from . import class_defines
 
 
 class VIEW3D_UL_sketches(UIList):
@@ -374,7 +376,6 @@ classes = [
     VIEW3D_MT_sketches,
 ]
 
-# classes += [panel for panel in SketcherVIEW3DPanel.__subclasses__()]
 classes.extend(panel for panel in SketcherVIEW3DPanel.__subclasses__())
 
 
