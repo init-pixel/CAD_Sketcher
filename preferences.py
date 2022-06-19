@@ -21,6 +21,7 @@ from . import (
     units,
     install,
     addon_updater_ops,
+    functions,
 )
 
 
@@ -319,7 +320,8 @@ class Preferences(AddonPreferences):
             list_props_recursiv(self.theme_settings)
 
         # TODO: Cleanup updater prop rendering
-        addon_updater_ops.update_settings_ui(self, context)
+        # addon_updater_ops.update_settings_ui(self, context)
+        addon_updater_ops.update_settings_ui_condensed(self, context)
 
 
 classes = (

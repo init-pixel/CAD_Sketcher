@@ -1,11 +1,23 @@
 ############### Operators ###############
 import math
 import logging
+from typing import Generator, Union
+from collections import namedtuple
 
 import bpy
+from bl_operators.presets import AddPresetBase
 import bgl
 import gpu
-from bpy.types import Operator, Context
+from bpy.types import (
+    Operator,
+    Context,
+    PropertyGroup,
+    Event,
+    Object,
+    Mesh,
+    Scene,
+    Context,
+)
 from bpy.props import (
     IntProperty,
     StringProperty,
@@ -18,6 +30,7 @@ from mathutils import Vector
 from mathutils.geometry import intersect_line_plane
 
 from . import global_data, functions, class_defines, convertors
+from .class_defines import SlvsGenericEntity
 from .keymaps import get_key_map_desc
 from .declarations import Operators, GizmoGroups, WorkSpaceTools
 

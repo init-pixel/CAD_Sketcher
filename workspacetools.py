@@ -1,23 +1,22 @@
-from bpy.types import WorkSpaceTool
 import os
+
+import bpy
+from bpy.types import WorkSpaceTool, Context, UILayout, Operator
+
 from .declarations import GizmoGroups, Operators, WorkSpaceTools
 from .keymaps import tool_access, get_key_map_desc
+from . import operators
 from .operators import numeric_events
+
 
 def get_addon_icon_path(icon_name: str):
     return os.path.join(os.path.dirname(__file__), "icons", icon_name)
 
 
-def tool_numeric_invoke_km(operator):
+def tool_numeric_invoke_km(operator: Operator):
     km = []
     for event in numeric_events:
-        km.append(
-            (
-                operator,
-                {"type": event, "value": "PRESS"},
-                None,
-            )
-        )
+        km.append((operator, {"type": event, "value": "PRESS"}, None,))
     return km
 
 
@@ -40,41 +39,16 @@ class VIEW3D_T_slvs_select(WorkSpaceTool):
             {"type": "A", "value": "PRESS", "ctrl": True},
             {"properties": [("deselect", False)]},
         ),
-        (
-            Operators.Select,
-            {"type": "LEFTMOUSE", "value": "CLICK"},
-            None,
-        ),
-        (
-            Operators.Tweak,
-            {"type": "LEFTMOUSE", "value": "CLICK_DRAG"},
-            None,
-        ),
-        (
-            Operators.Tweak,
-            {"type": "LEFTMOUSE", "value": "PRESS", "ctrl": True},
-            None,
-        ),
-        (
-            Operators.ContextMenu,
-            {"type": "RIGHTMOUSE", "value": "PRESS"},
-            None,
-        ),
-        (
-            Operators.DeleteEntity,
-            {"type": "DEL", "value": "PRESS"},
-            None,
-        ),
+        (Operators.Select, {"type": "LEFTMOUSE", "value": "CLICK"}, None,),
+        (Operators.Tweak, {"type": "LEFTMOUSE", "value": "CLICK_DRAG"}, None,),
+        (Operators.Tweak, {"type": "LEFTMOUSE", "value": "PRESS", "ctrl": True}, None,),
+        (Operators.ContextMenu, {"type": "RIGHTMOUSE", "value": "PRESS"}, None,),
+        (Operators.DeleteEntity, {"type": "DEL", "value": "PRESS"}, None,),
         *tool_access,
     )
 
-<<<<<<< HEAD
     def draw_settings(context: Context, layout: UILayout, tool):
         props = tool.operator_properties(operators.View3D_OT_slvs_select.bl_idname)
-=======
-    def draw_settings(context, layout, tool):
-        props = tool.operator_properties(Operators.Select)
->>>>>>> root/main
 
 
 tool_keymap = (
@@ -101,8 +75,8 @@ def operator_access(operator: Operator):
         ),
     )
 
-class GenericStateTool():
 
+class GenericStateTool:
     @classmethod
     def bl_description(cls, context: Context, item, keymap):
         op_name = cls.bl_operator if hasattr(cls, "bl_operator") else ""
@@ -114,13 +88,18 @@ class GenericStateTool():
             desc = _bpy.ops.get_rna_type(op_name).description
 
         return desc
-    
+
     def get_label(id_name, label):
         def _filter_key_map(id_name, key_map):
             properties = key_map[2]["properties"]
-            tool_name_index = [property[0] for property in properties].index("tool_name")
+            tool_name_index = [property[0] for property in properties].index(
+                "tool_name"
+            )
             return properties[tool_name_index][1] == id_name
-        return f"{label}{get_key_map_desc(Operators.InvokeTool, id_name, _filter_key_map)}"
+
+        return (
+            f"{label}{get_key_map_desc(Operators.InvokeTool, id_name, _filter_key_map)}"
+        )
 
 
 class View3D_T_slvs_add_point3d(GenericStateTool, WorkSpaceTool):
@@ -235,6 +214,7 @@ class View3D_T_slvs_add_rectangle(GenericStateTool, WorkSpaceTool):
         *operator_access(Operators.AddRectangle),
     )
 
+
 class View3D_T_slvs_trim(GenericStateTool, WorkSpaceTool):
     bl_space_type = "VIEW_3D"
     bl_context_mode = "OBJECT"
@@ -254,7 +234,9 @@ class View3D_T_slvs_add_workplane_face(GenericStateTool, WorkSpaceTool):
     bl_space_type = "VIEW_3D"
     bl_context_mode = "OBJECT"
     bl_idname = WorkSpaceTools.AddWorkplaneFace
-    bl_label = GenericStateTool.get_label(WorkSpaceTools.AddWorkplaneFace, "Add Workplane on mesh face")
+    bl_label = GenericStateTool.get_label(
+        WorkSpaceTools.AddWorkplaneFace, "Add Workplane on mesh face"
+    )
     bl_operator = Operators.AddWorkPlaneFace
     bl_icon = "ops.mesh.primitive_grid_add_gizmo"
     bl_widget = GizmoGroups.Preselection

@@ -4,7 +4,7 @@ import bpy
 import bgl
 import gpu
 import blf
-from bpy.types import Gizmo, GizmoGroup
+from bpy.types import Gizmo, GizmoGroup, Context
 
 from .declarations import GizmoGroups, Gizmos, Operators
 from . import (
