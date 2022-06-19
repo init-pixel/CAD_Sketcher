@@ -5,8 +5,8 @@ import subprocess
 import re
 import site
 from importlib import reload
-
 from typing import Any, List, Tuple, Union
+
 import bpy
 import bmesh
 from bpy.types import Context, RegionView3D, Object

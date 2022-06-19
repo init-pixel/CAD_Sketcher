@@ -12,10 +12,8 @@ from . import (
     ui,
     keymaps,
 )
-
 from .declarations import Operators
 
-from bpy.types import Operator
 
 modules = (
     handlers,

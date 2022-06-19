@@ -11,9 +11,9 @@ from event_system import add_builtin_handler
 add_builtin_handler("save_pre", write_addon_version)
 add_builtin_handler("version_update", do_versioning)
 """
+import logging
 
 import bpy
-import logging
 from bpy.app.handlers import persistent
 
 logger = logging.getLogger(__name__)

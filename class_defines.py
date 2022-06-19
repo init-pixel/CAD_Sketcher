@@ -22,8 +22,7 @@ from bpy_extras.view3d_utils import location_3d_to_region_2d
 import mathutils
 from mathutils import Vector, Matrix, Euler
 
-from . import global_data
-from . import functions, preferences
+from . import global_data, functions, preferences
 from .shaders import Shaders
 from .solver import solve_system, Solver
 from .functions import unique_attribute_setter
@@ -35,12 +34,19 @@ logger = logging.getLogger(__name__)
 def entity_name_getter(self):
     return self.get("name", str(self))
 
+
 def entity_name_setter(self, new_name):
     self["name"] = new_name
 
+
 class SlvsGenericEntity:
     slvs_index: IntProperty(name="Global Index", default=-1)
-    name: StringProperty(name="Name", get=entity_name_getter, set=entity_name_setter, options={"SKIP_SAVE"})
+    name: StringProperty(
+        name="Name",
+        get=entity_name_getter,
+        set=entity_name_setter,
+        options={"SKIP_SAVE"},
+    )
     fixed: BoolProperty(name="Fixed")
     visible: BoolProperty(name="Visible", default=True, update=functions.update_cb)
     origin: BoolProperty(name="Origin")
@@ -842,11 +848,13 @@ class SlvsPoint2D(Point2D, PropertyGroup):
         col = layout.column()
         col.prop(self, "co")
 
+
 def round_v(vec, ndigits=None):
     values = []
     for v in vec:
         values.append(round(v, ndigits=ndigits))
     return Vector(values)
+
 
 class SlvsLine2D(SlvsGenericEntity, PropertyGroup, Entity2D):
     """Representation of a line in 2D space. Connects p1 and p2 and lies on the
@@ -934,7 +942,12 @@ class SlvsLine2D(SlvsGenericEntity, PropertyGroup, Entity2D):
     def overlaps_endpoint(self, co):
         precision = 5
         co_rounded = round_v(co, ndigits=precision)
-        if any([co_rounded == round_v(v, ndigits=precision) for v in (self.p1.co, self.p2.co)]):
+        if any(
+            [
+                co_rounded == round_v(v, ndigits=precision)
+                for v in (self.p1.co, self.p2.co)
+            ]
+        ):
             return True
         return False
 
@@ -945,13 +958,14 @@ class SlvsLine2D(SlvsGenericEntity, PropertyGroup, Entity2D):
                 return ()
             if self.overlaps_endpoint(value) or other.overlaps_endpoint(value):
                 return ()
-            return (value, )
+            return (value,)
 
         if other.is_line():
-            return parse_retval(intersect_line_line_2d(self.p1.co, self.p2.co, other.p1.co, other.p2.co))
+            return parse_retval(
+                intersect_line_line_2d(self.p1.co, self.p2.co, other.p1.co, other.p2.co)
+            )
         else:
             return other.intersect(self)
-
 
     def replace(self, context, p1, p2, use_self=False):
         # Replace entity by a similar entity with the connection points p1, and p2
@@ -963,11 +977,7 @@ class SlvsLine2D(SlvsGenericEntity, PropertyGroup, Entity2D):
 
         sse = context.scene.sketcher.entities
         sketch = context.scene.sketcher.active_sketch
-        line = sse.add_line_2d(
-            p1,
-            p2,
-            sketch,
-        )
+        line = sse.add_line_2d(p1, p2, sketch,)
         line.construction = self.construction
         return line
 
@@ -980,6 +990,7 @@ class SlvsLine2D(SlvsGenericEntity, PropertyGroup, Entity2D):
         retval = (len_1 + len_2) % (self.length + threshold)
 
         return retval
+
 
 slvs_entity_pointer(SlvsLine2D, "p1")
 slvs_entity_pointer(SlvsLine2D, "p2")
@@ -1257,7 +1268,6 @@ class SlvsArc(SlvsGenericEntity, PropertyGroup, Entity2D):
         if not p.length or not p1.length or not p2.length:
             return False
 
-
         if a1 < angle > a2:
             return True
         return False
@@ -1265,7 +1275,12 @@ class SlvsArc(SlvsGenericEntity, PropertyGroup, Entity2D):
     def overlaps_endpoint(self, co):
         precision = 5
         co_rounded = round_v(co, ndigits=precision)
-        if any([co_rounded == round_v(v, ndigits=precision) for v in (self.p1.co, self.p2.co)]):
+        if any(
+            [
+                co_rounded == round_v(v, ndigits=precision)
+                for v in (self.p1.co, self.p2.co)
+            ]
+        ):
             return True
         return False
 
@@ -1294,10 +1309,20 @@ class SlvsArc(SlvsGenericEntity, PropertyGroup, Entity2D):
 
         if other.is_line():
             from mathutils.geometry import intersect_line_sphere_2d
-            return parse_retval(intersect_line_sphere_2d(other.p1.co, other.p2.co, self.ct.co, self.radius))
+
+            return parse_retval(
+                intersect_line_sphere_2d(
+                    other.p1.co, other.p2.co, self.ct.co, self.radius
+                )
+            )
         elif other.is_curve():
             from mathutils.geometry import intersect_sphere_sphere_2d
-            return parse_retval(intersect_sphere_sphere_2d(self.ct.co, self.radius, other.ct.co, other.radius))
+
+            return parse_retval(
+                intersect_sphere_sphere_2d(
+                    self.ct.co, self.radius, other.ct.co, other.radius
+                )
+            )
 
     def distance_along_segment(self, p1, p2):
         ct = self.ct.co
@@ -1312,7 +1337,6 @@ class SlvsArc(SlvsGenericEntity, PropertyGroup, Entity2D):
 
         return retval
 
-
     def replace(self, context, p1, p2, use_self=False):
         if use_self:
             self.p1 = p1
@@ -1321,11 +1345,7 @@ class SlvsArc(SlvsGenericEntity, PropertyGroup, Entity2D):
 
         sketch = context.scene.sketcher.active_sketch
         arc = context.scene.sketcher.entities.add_arc(
-            sketch.wp.nm,
-            self.ct,
-            p1,
-            p2,
-            sketch
+            sketch.wp.nm, self.ct, p1, p2, sketch
         )
         arc.construction = self.construction
         arc.invert_direction = self.invert_direction
@@ -1349,6 +1369,7 @@ class SlvsCircle(SlvsGenericEntity, PropertyGroup, Entity2D):
         nm (SlvsNormal2D):
         sketch (SlvsSketch): The sketch this entity belongs to
     """
+
     radius: FloatProperty(
         name="Radius",
         description="The radius of the circle",
@@ -1485,14 +1506,22 @@ class SlvsCircle(SlvsGenericEntity, PropertyGroup, Entity2D):
 
         if other.is_line():
             from mathutils.geometry import intersect_line_sphere_2d
-            return parse_retval(intersect_line_sphere_2d(other.p1.co, other.p2.co, self.ct.co, self.radius))
+
+            return parse_retval(
+                intersect_line_sphere_2d(
+                    other.p1.co, other.p2.co, self.ct.co, self.radius
+                )
+            )
         elif isinstance(other, SlvsCircle):
             from mathutils.geometry import intersect_sphere_sphere_2d
-            return parse_retval(intersect_sphere_sphere_2d(self.ct.co, self.radius, other.ct.co, other.radius))
+
+            return parse_retval(
+                intersect_sphere_sphere_2d(
+                    self.ct.co, self.radius, other.ct.co, other.radius
+                )
+            )
         else:
             return other.intersect(self)
-
-
 
     def replace(self, context, p1, p2, use_self=False):
         if use_self:
@@ -1502,11 +1531,7 @@ class SlvsCircle(SlvsGenericEntity, PropertyGroup, Entity2D):
 
         sketch = context.scene.sketcher.active_sketch
         arc = context.scene.sketcher.entities.add_arc(
-            sketch.wp.nm,
-            self.ct,
-            p1,
-            p2,
-            sketch
+            sketch.wp.nm, self.ct, p1, p2, sketch
         )
         arc.construction = self.construction
         return arc
@@ -1522,6 +1547,7 @@ class SlvsCircle(SlvsGenericEntity, PropertyGroup, Entity2D):
 slvs_entity_pointer(SlvsCircle, "nm")
 slvs_entity_pointer(SlvsCircle, "ct")
 slvs_entity_pointer(SlvsCircle, "sketch")
+
 
 def update_pointers(scene, index_old, index_new):
     """Replaces all references to an entity index with it's new index"""
@@ -1926,6 +1952,7 @@ curve = (SlvsCircle, SlvsArc)
 segment = (*line, *curve)
 
 ENTITY_PROP_NAMES = ("entity1", "entity2", "entity3", "entity4")
+
 
 class GenericConstraint:
     failed: BoolProperty(name="Failed")

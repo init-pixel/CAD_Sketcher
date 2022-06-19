@@ -15,12 +15,13 @@ from bpy.props import (
 from bpy.utils import register_class, unregister_class
 from bl_ui.utils import PresetPanel
 
-from . import functions
-from . import global_data
-from . import theme
-from . import units
-from . import install
-from . import addon_updater_ops
+from . import (
+    global_data,
+    theme,
+    units,
+    install,
+    addon_updater_ops,
+)
 
 
 log_levels = [

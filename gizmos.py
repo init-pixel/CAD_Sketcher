@@ -1,15 +1,17 @@
-import bpy, bgl, gpu, blf
-from . import functions, operators, global_data, class_defines, icon_manager
-from .declarations import GizmoGroups, Gizmos, Operators
-from bpy.types import Gizmo, GizmoGroup
 from mathutils import Vector, Matrix
 
+import bpy
+import bgl
+import gpu
+import blf
+from bpy.types import Gizmo, GizmoGroup
+
+from .declarations import GizmoGroups, Gizmos, Operators
 from . import (
     functions,
     operators,
     global_data,
     class_defines,
-    preferences,
     icon_manager,
 )
 

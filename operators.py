@@ -1,10 +1,11 @@
 ############### Operators ###############
-import bpy, bgl, gpu
-from bpy.types import Operator
-from . import global_data, functions, class_defines, convertors
-from .keymaps import get_key_map_desc
-from .declarations import Operators, GizmoGroups, WorkSpaceTools
+import math
+import logging
 
+import bpy
+import bgl
+import gpu
+from bpy.types import Operator, Context
 from bpy.props import (
     IntProperty,
     StringProperty,
@@ -13,11 +14,12 @@ from bpy.props import (
     EnumProperty,
     BoolProperty,
 )
-import math
-from mathutils import Vector, Matrix
+from mathutils import Vector
 from mathutils.geometry import intersect_line_plane
 
-import logging
+from . import global_data, functions, class_defines, convertors
+from .keymaps import get_key_map_desc
+from .declarations import Operators, GizmoGroups, WorkSpaceTools
 
 logger = logging.getLogger(__name__)
 
