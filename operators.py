@@ -2,6 +2,8 @@
 
 import logging
 import math
+from typing import Generator, Union
+from collections import namedtuple
 
 import bpy
 from bpy.types import Operator, Context, Event, PropertyGroup, Object, Scene, Mesh
@@ -21,9 +23,8 @@ from mathutils import Vector
 from mathutils.geometry import intersect_line_plane
 
 from .solver import Solver, solve_system
-from . import global_data, functions, class_defines, convertors, preferences
-from .functions import get_prefs
-from .global_data import WpReq
+from . import global_data, functions, class_defines, convertors
+from .class_defines import SlvsGenericEntity
 from . import gizmos
 
 logger = logging.getLogger(__name__)
@@ -193,7 +194,7 @@ def deselect_all(context: Context):
     global_data.selected.clear()
 
 
-def entities_3d(context: Context):
+def entities_3d(context: Context) -> Generator[SlvsGenericEntity, None, None]:
     for entity in context.scene.sketcher.entities.all:
         if hasattr(entity, "sketch"):
             continue
@@ -593,12 +594,18 @@ numeric_events = (
 )
 
 
-def get_evaluated_obj(context, object):
+def get_evaluated_obj(context: Context, object: Object):
     return object.evaluated_get(context.evaluated_depsgraph_get())
 
 
 def get_mesh_element(
-    context, coords, vertex=False, edge=False, face=False, threshold=0.5, object=None
+    context: Context,
+    coords,
+    vertex=False,
+    edge=False,
+    face=False,
+    threshold=0.5,
+    object: Union[None, Object] = None,
 ):
     from bpy_extras import view3d_utils
 
@@ -688,7 +695,7 @@ def to_list(val):
     ]
 
 
-def _get_pointer_get_set(index):
+def _get_pointer_get_set(index: int):
     @property
     def func(self):
         return self.get_state_pointer(index=index)
@@ -700,7 +707,7 @@ def _get_pointer_get_set(index):
     return func, setter
 
 
-mesh_element_types = bpy.types.MeshVertex, bpy.types.MeshEdge, bpy.types.MeshPolygon
+mesh_element_types = {bpy.types.MeshVertex, bpy.types.MeshEdge, bpy.types.MeshPolygon}
 
 
 class StatefulOperator:
@@ -732,7 +739,7 @@ class StatefulOperator:
 
         # Have some specific logic: pointer name "object" is used as global object
         # otherwise define ob_name for each element
-        has_global_object = cls._has_global_object()
+        # has_global_object = cls._has_global_object()
 
         for i, s in enumerate(states):
             pointer_name = s.pointer
@@ -1654,9 +1661,6 @@ class StatefulOperator:
 #   method to create state element when no existing element gets picked,
 #   has to set the type of the created element
 
-
-from collections import namedtuple
-
 OperatorState = namedtuple(
     "OperatorState",
     (
@@ -1686,7 +1690,7 @@ OperatorState = namedtuple(
         "check_pointer",
     ),
 )
-del namedtuple
+# del namedtuple
 
 
 def state_from_args(name, **kwargs):
@@ -1825,7 +1829,7 @@ class GenericEntityOp(StatefulOperator):
         if not pointer_name:
             return ""
 
-        if any([issubclass(t, class_defines.SlvsGenericEntity) for t in state.types]):
+        if any([issubclass(t, SlvsGenericEntity) for t in state.types]):
             return pointer_name + "_fallback"
         return ""
 
@@ -1848,7 +1852,7 @@ class GenericEntityOp(StatefulOperator):
         if not pointer_type:
             return None
 
-        if issubclass(pointer_type, class_defines.SlvsGenericEntity):
+        if issubclass(pointer_type, SlvsGenericEntity):
             i = data["entity_index"]
             if implicit:
                 return i
@@ -1871,7 +1875,7 @@ class GenericEntityOp(StatefulOperator):
         data = self._state_data.get(index, {})
         pointer_type = data["type"]
 
-        if issubclass(pointer_type, class_defines.SlvsGenericEntity):
+        if issubclass(pointer_type, SlvsGenericEntity):
             value = values[0] if values != None else None
 
             if value is None:
@@ -3225,13 +3229,13 @@ class View3D_OT_slvs_tweak_constraint_value_pos(Operator):
     type: StringProperty(name="Type")
     index: IntProperty(default=-1)
 
-    def invoke(self, context, event):
+    def invoke(self, context: Context, event: Event):
         self.tweak = False
         self.init_mouse_pos = Vector((event.mouse_region_x, event.mouse_region_y))
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
-    def modal(self, context, event):
+    def modal(self, context: Context, event: Event):
         delta = (
             self.init_mouse_pos - Vector((event.mouse_region_x, event.mouse_region_y))
         ).length
@@ -3297,7 +3301,7 @@ class SKETCHER_OT_add_preset_theme(AddPresetBase, Operator):
     preset_subdir = "bgs/theme"
 
 
-def mesh_from_temporary(mesh: Mesh, name: str, existing_mesh: bool = None):
+def mesh_from_temporary(mesh: Mesh, name: str, existing_mesh: Union[bool, None] = None):
 
     bm = bmesh.new()
     bm.from_mesh(mesh)
