@@ -184,6 +184,7 @@ class Preferences(AddonPreferences):
         name="Icon Scale", default=15.0, min=1.0, soft_max=25.0, update=theme.update
     )
     text_size: IntProperty(name="Text Size", default=15, min=5, soft_max=25)
+    arrow_scale: FloatProperty(name="Arrow Scale", default=1, min=0.2, soft_max=3)
 
     # Addon updater properties
     auto_check_update: BoolProperty(
@@ -255,6 +256,7 @@ class Preferences(AddonPreferences):
         col.prop(self, "entity_scale")
         col.prop(self, "gizmo_scale")
         col.prop(self, "text_size")
+        col.prop(self, "arrow_scale")
 
         box = layout.box()
         box.label(text="Units")

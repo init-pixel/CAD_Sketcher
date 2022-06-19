@@ -1,10 +1,7 @@
-import math
-
-import bpy
-from bpy.types import Gizmo, GizmoGroup, Context
-import bgl
-import gpu
-import blf
+import bpy, bgl, gpu, blf
+from . import functions, operators, global_data, class_defines, icon_manager
+from .declarations import GizmoGroups, Gizmos, Operators
+from bpy.types import Gizmo, GizmoGroup
 from mathutils import Vector, Matrix
 
 from . import (
@@ -25,7 +22,7 @@ DEFAULT_OVERSHOOT = 0.01
 # NOTE: idealy gizmo would expose active element as a property and
 # operators would access hovered element from there
 class VIEW3D_GT_slvs_preselection(Gizmo):
-    bl_idname = "VIEW3D_GT_slvs_preselection"
+    bl_idname = Gizmos.Preselection
 
     __slots__ = ()
 
@@ -43,6 +40,7 @@ class VIEW3D_GT_slvs_preselection(Gizmo):
             context.area.tag_redraw()
 
         # ensure selection texture is up to date
+        # TODO: avoid dependency on operators module?
         operators.ensure_selection_texture(context)
 
         # sample selection texture and mark hovered entity
@@ -78,6 +76,10 @@ def context_mode_check(context: Context, widget_group):
     return True
 
 
+GIZMO_OFFSET = Vector((10.0, 10.0))
+GIZMO_GENERIC_SIZE = 5
+
+
 class ConstraintGizmo:
     def _get_constraint(self, context: Context):
         return context.scene.sketcher.constraints.get_from_type_index(
@@ -107,7 +109,7 @@ class ConstraintGizmo:
 
 
 class VIEW3D_GT_slvs_constraint(ConstraintGizmo, Gizmo):
-    bl_idname = "VIEW3D_GT_slvs_constraint"
+    bl_idname = Gizmos.Constraint
 
     __slots__ = (
         "custom_shape",
@@ -145,6 +147,8 @@ class VIEW3D_GT_slvs_constraint(ConstraintGizmo, Gizmo):
 
     def draw(self, context: Context):
         constraint = self._get_constraint(context)
+        if not constraint.visible:
+            return
         col = self._set_colors(context, constraint)
         self._update_matrix_basis(context, constraint)
 
@@ -179,7 +183,7 @@ def _get_formatted_value(context: Context, constr):
 class VIEW3D_GT_slvs_constraint_value(ConstraintGizmo, Gizmo):
     """Display the value of a dimensional constraint"""
 
-    bl_idname = "VIEW3D_GT_slvs_constraint_value"
+    bl_idname = Gizmos.ConstraintValue
 
     __slots__ = ("type", "index", "width", "height")
 
@@ -193,7 +197,8 @@ class VIEW3D_GT_slvs_constraint_value(ConstraintGizmo, Gizmo):
 
     def draw(self, context: Context):
         constr = self._get_constraint(context)
-        if not hasattr(constr, "value_placement"):
+
+        if not constr.visible or not hasattr(constr, "value_placement"):
             return
         pos = constr.value_placement(context)
 
@@ -235,6 +240,8 @@ class ConstraintGizmoGeneric(ConstraintGizmo):
 
     def draw(self, context: Context):
         constr = self._get_constraint(context)
+        if not constr.visible:
+            return
         self._set_colors(context, constr)
         self._update_matrix_basis(constr)
 
@@ -243,6 +250,8 @@ class ConstraintGizmoGeneric(ConstraintGizmo):
 
     def draw_select(self, context, select_id):
         constr = self._get_constraint(context)
+        if not constr.visible:
+            return
         self._create_shape(context, constr, select=True)
         self.draw_custom_shape(self.custom_shape, select_id=select_id)
 
@@ -259,10 +268,12 @@ def draw_arrow_shape(target, shoulder, width, is_3d=False):
     v.length = abs(width / 2)
 
     return (
-        target,
         ((shoulder + v)),
-        ((shoulder - v)),
         target,
+        target,
+        ((shoulder - v)),
+        ((shoulder - v)),
+        ((shoulder + v)),
     )
 
 
@@ -273,14 +284,14 @@ def get_overshoot(scale, dir):
 
 
 def get_arrow_size(dist, scale):
-    length = math.copysign(min(scale * GIZMO_ARROW_SCALE, abs(dist * 0.8),), dist,)
-
-    width = length * 0.4
-    return length, width
+    size = math.copysign(
+        min(scale * functions.get_prefs().arrow_scale / 100, abs(dist * 0.8),), dist,
+    )
+    return size, size / 2
 
 
 class VIEW3D_GT_slvs_distance(Gizmo, ConstraintGizmoGeneric):
-    bl_idname = "VIEW3D_GT_slvs_distance"
+    bl_idname = Gizmos.Distance
     type = class_defines.SlvsDistance.type
 
     bl_target_properties = ({"id": "offset", "type": "FLOAT", "array_length": 1},)
@@ -380,7 +391,7 @@ class VIEW3D_GT_slvs_distance(Gizmo, ConstraintGizmoGeneric):
 
 
 class VIEW3D_GT_slvs_angle(Gizmo, ConstraintGizmoGeneric):
-    bl_idname = "VIEW3D_GT_slvs_angle"
+    bl_idname = Gizmos.Angle
     type = class_defines.SlvsAngle.type
 
     bl_target_properties = ({"id": "offset", "type": "FLOAT", "array_length": 1},)
@@ -419,8 +430,9 @@ class VIEW3D_GT_slvs_angle(Gizmo, ConstraintGizmoGeneric):
             scale = functions.get_scale_from_pos(self.matrix_world @ p.to_3d(), rv3d)
             scales.append(scale)
             length = min(
-                scale * GIZMO_ARROW_SCALE, abs(0.8 * radius * constr.value / 2),
+                get_arrow_size(radius, scale)[0], abs(0.8 * radius * constr.value / 2),
             )
+
             lengths.append(length)
             widths.append(length * 0.4)
 
@@ -450,7 +462,7 @@ class VIEW3D_GT_slvs_angle(Gizmo, ConstraintGizmoGeneric):
 
 
 class VIEW3D_GT_slvs_diameter(Gizmo, ConstraintGizmoGeneric):
-    bl_idname = "VIEW3D_GT_slvs_diameter"
+    bl_idname = Gizmos.Diameter
     type = class_defines.SlvsDiameter.type
 
     bl_target_properties = ({"id": "offset", "type": "FLOAT", "array_length": 1},)
@@ -533,7 +545,7 @@ class VIEW3D_GT_slvs_diameter(Gizmo, ConstraintGizmoGeneric):
 
 
 class VIEW3D_GGT_slvs_preselection(GizmoGroup):
-    bl_idname = "VIEW3D_GGT_slvs_preselection"
+    bl_idname = GizmoGroups.Preselection
     bl_label = "preselection ggt"
     bl_space_type = "VIEW_3D"
     bl_region_type = "WINDOW"
@@ -620,9 +632,7 @@ class ConstraintGenericGGT:
             gz.use_draw_modal = True
             gz.target_set_prop("offset", c, "draw_offset")
 
-            props = gz.target_set_operator(
-                operators.View3D_OT_slvs_tweak_constraint_value_pos.bl_idname
-            )
+            props = gz.target_set_operator(Operators.TweakConstraintValuePos)
             props.type = self.type
             props.index = gz.index
 
@@ -638,7 +648,7 @@ class ConstraintGenericGGT:
 
 
 class VIEW3D_GGT_slvs_distance(GizmoGroup, ConstraintGenericGGT):
-    bl_idname = "VIEW3D_GGT_slvs_distance"
+    bl_idname = GizmoGroups.Distance
     bl_label = "Distance Constraint Gizmo Group"
 
     type = class_defines.SlvsDistance.type
@@ -646,7 +656,7 @@ class VIEW3D_GGT_slvs_distance(GizmoGroup, ConstraintGenericGGT):
 
 
 class VIEW3D_GGT_slvs_angle(GizmoGroup, ConstraintGenericGGT):
-    bl_idname = "VIEW3D_GGT_slvs_angle"
+    bl_idname = GizmoGroups.Angle
     bl_label = "Angle Constraint Gizmo Group"
 
     type = class_defines.SlvsAngle.type
@@ -654,7 +664,7 @@ class VIEW3D_GGT_slvs_angle(GizmoGroup, ConstraintGenericGGT):
 
 
 class VIEW3D_GGT_slvs_diameter(GizmoGroup, ConstraintGenericGGT):
-    bl_idname = "VIEW3D_GGT_slvs_diameter"
+    bl_idname = GizmoGroups.Diameter
     bl_label = "Diameter Gizmo Group"
 
     type = class_defines.SlvsDiameter.type
@@ -670,7 +680,7 @@ def iter_dimenional_constraints(context: Context):
 
 
 class VIEW3D_GGT_slvs_constraint(GizmoGroup):
-    bl_idname = "VIEW3D_GGT_slvs_constraint"
+    bl_idname = GizmoGroups.Constraint
     bl_label = "Constraint Gizmo Group"
     bl_space_type = "VIEW_3D"
     bl_region_type = "WINDOW"
@@ -715,7 +725,7 @@ class VIEW3D_GGT_slvs_constraint(GizmoGroup):
 
                 gz.use_draw_modal = True
 
-                op = operators.View3D_OT_slvs_context_menu.bl_idname
+                op = Operators.ContextMenu
                 props = gz.target_set_operator(op)
                 props.type = c.type
                 props.index = gz.index
@@ -733,9 +743,7 @@ class VIEW3D_GGT_slvs_constraint(GizmoGroup):
             gz.type = c.type
             gz.index = index
 
-            props = gz.target_set_operator(
-                operators.View3D_OT_slvs_tweak_constraint_value_pos.bl_idname
-            )
+            props = gz.target_set_operator(Operators.TweakConstraintValuePos)
             props.type = c.type
             props.index = index
 

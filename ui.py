@@ -1,9 +1,16 @@
 import bpy
+<<<<<<< HEAD
 from bpy.types import Panel, Menu, UIList, Context, UILayout
 
 from . import operators
 from . import functions
 from . import class_defines
+=======
+from bpy.types import Panel, Menu, UIList
+from . import functions, class_defines
+from .declarations import Menus, Operators, Panels
+from .operators import constraint_operators
+>>>>>>> root/main
 
 
 class VIEW3D_UL_sketches(UIList):
@@ -30,7 +37,7 @@ class VIEW3D_UL_sketches(UIList):
 
                 if item.solver_state != "OKAY":
                     row.operator(
-                        operators.View3D_OT_slvs_show_solver_state.bl_idname,
+                        Operators.ShowSolverState,
                         text="",
                         emboss=False,
                         icon_value=layout.enum_item_icon(
@@ -39,7 +46,7 @@ class VIEW3D_UL_sketches(UIList):
                     ).index = item.slvs_index
 
                 row.operator(
-                    operators.View3D_OT_slvs_set_active_sketch.bl_idname,
+                    Operators.SetActiveSketch,
                     icon="OUTLINER_DATA_GP_LAYER",
                     text="",
                     emboss=False,
@@ -47,7 +54,7 @@ class VIEW3D_UL_sketches(UIList):
 
                 if active:
                     row.operator(
-                        operators.View3D_OT_slvs_delete_entity.bl_idname,
+                        Operators.DeleteEntity,
                         text="",
                         icon="X",
                         emboss=False,
@@ -63,7 +70,9 @@ class VIEW3D_UL_sketches(UIList):
             layout.label(text="", icon_value=icon)
 
 
-class SketcherVIEW3DPanel:
+class VIEW3D_PT_sketcher(Panel):
+    bl_label = "Sketcher"
+    bl_idname = Panels.Sketcher
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Sketcher"
@@ -89,7 +98,7 @@ class VIEW3D_PT_sketcher(SketcherVIEW3DPanel, Panel):
             if sketch.solver_state != "OKAY":
                 state = sketch.get_solver_state()
                 row.operator(
-                    operators.View3D_OT_slvs_show_solver_state.bl_idname,
+                    Operators.ShowSolverState,
                     text=state.name,
                     icon=state.icon,
                     emboss=False,
@@ -114,7 +123,7 @@ class VIEW3D_PT_sketcher(SketcherVIEW3DPanel, Panel):
                 layout.prop(sketch, "fill_shape")
 
             layout.operator(
-                operators.View3D_OT_slvs_delete_entity.bl_idname,
+                Operators.DeleteEntity,
                 text="Delete Sketch",
                 icon="X",
             ).index = sketch.slvs_index
@@ -130,35 +139,27 @@ class VIEW3D_PT_sketcher(SketcherVIEW3DPanel, Panel):
             )
 
 
-class VIEW3D_PT_sketcher_debug(SketcherVIEW3DPanel, Panel):
-    bl_label = "Debug"
-    bl_idname = "VIEW3D_PT_sketcher_debug"
-    bl_options = {"DEFAULT_CLOSED"}
+        layout.label(text="Constraints:")
+        col = layout.column(align=True)
+        for op in constraint_operators:
+            col.operator(op.bl_idname)
 
     @classmethod
     def poll(cls, context: Context):
         prefs = functions.get_prefs()
         return prefs.show_debug_settings
 
-    def draw(self, context: Context):
-        layout = self.layout
-        layout.use_property_split = False
-        layout.label(text="Debug:")
-        layout.label(text="Version: " + str(context.scene.sketcher.version[:]))
+            layout.operator(Operators.WriteSelectionTexture)
+            layout.operator(Operators.Solve)
+            layout.operator(
+                Operators.Solve, text="Solve All"
+            ).all = True
 
-        layout.operator(operators.VIEW3D_OT_slvs_write_selection_texture.bl_idname)
-        layout.operator(operators.View3D_OT_slvs_solve.bl_idname)
-        layout.operator(
-            operators.View3D_OT_slvs_solve.bl_idname, text="Solve All"
-        ).all = True
-        prefs = functions.get_prefs()
-
-        layout.operator(operators.View3D_OT_slvs_test.bl_idname)
-        layout.prop(context.scene.sketcher, "show_origin")
-        layout.prop(prefs, "hide_inactive_constraints")
-        layout.prop(prefs, "all_entities_selectable")
-        layout.prop(prefs, "force_redraw")
-
+            layout.operator(Operators.Test)
+            layout.prop(context.scene.sketcher, "show_origin")
+            layout.prop(prefs, "hide_inactive_constraints")
+            layout.prop(prefs, "all_entities_selectable")
+            layout.prop(prefs, "force_redraw")
 
 class VIEW3D_PT_sketcher_add_constraints(SketcherVIEW3DPanel, Panel):
     bl_label = "Add Constraints"
@@ -175,7 +176,10 @@ class VIEW3D_PT_sketcher_add_constraints(SketcherVIEW3DPanel, Panel):
 
 class VIEW3D_PT_sketcher_entities(SketcherVIEW3DPanel, Panel):
     bl_label = "Entities"
-    bl_idname = "VIEW3D_PT_sketcher_entities"
+    bl_idname = Panels.SketcherEntities
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Sketcher"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -195,8 +199,18 @@ class VIEW3D_PT_sketcher_entities(SketcherVIEW3DPanel, Panel):
             row.alert = e.selected
 
             # Left part
-            sub = row.row()
+            sub = row.row(align=True)
             sub.alignment = "LEFT"
+
+            # Select operator
+            props = sub.operator(
+                Operators.Select,
+                text="",
+                emboss=False,
+                icon=("RADIOBUT_ON" if e.selected else "RADIOBUT_OFF"),
+            )
+            props.index = e.slvs_index
+            props.highlight_hover = True
 
             # Visibility toggle
             sub.prop(
@@ -207,12 +221,7 @@ class VIEW3D_PT_sketcher_entities(SketcherVIEW3DPanel, Panel):
                 emboss=False,
             )
 
-            # Select operator
-            props = sub.operator(
-                operators.View3D_OT_slvs_select.bl_idname, text=str(e), emboss=False
-            )
-            props.index = e.slvs_index
-            props.highlight_hover = True
+            sub.prop(e, "name", text="")
 
             # Right part
             sub = row.row()
@@ -220,7 +229,7 @@ class VIEW3D_PT_sketcher_entities(SketcherVIEW3DPanel, Panel):
 
             # Context menu
             props = sub.operator(
-                operators.View3D_OT_slvs_context_menu.bl_idname,
+                Operators.ContextMenu,
                 text="",
                 icon="OUTLINER_DATA_GP_LAYER",
                 emboss=False,
@@ -231,7 +240,7 @@ class VIEW3D_PT_sketcher_entities(SketcherVIEW3DPanel, Panel):
 
             # Delete operator
             props = sub.operator(
-                operators.View3D_OT_slvs_delete_entity.bl_idname,
+                Operators.DeleteEntity,
                 text="",
                 icon="X",
                 emboss=False,
@@ -242,7 +251,10 @@ class VIEW3D_PT_sketcher_entities(SketcherVIEW3DPanel, Panel):
 
 class VIEW3D_PT_sketcher_constraints(SketcherVIEW3DPanel, Panel):
     bl_label = "Constraints"
-    bl_idname = "VIEW3D_PT_sketcher_constraints"
+    bl_idname = Panels.SketcherContraints
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Sketcher"
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context):
@@ -250,6 +262,8 @@ class VIEW3D_PT_sketcher_constraints(SketcherVIEW3DPanel, Panel):
         box = layout.box()
         col = box.column(align=True)
         col.scale_y = 0.8
+
+        layout.operator_enum(Operators.SetAllConstraintsVisibility, "visibility")
 
         sketch = context.scene.sketcher.active_sketch
         for c in context.scene.sketcher.constraints.all:
@@ -261,6 +275,14 @@ class VIEW3D_PT_sketcher_constraints(SketcherVIEW3DPanel, Panel):
             sub = row.row()
             sub.alignment = "LEFT"
 
+            sub.prop(
+                c,
+                "visible",
+                icon_only=True,
+                icon=("HIDE_OFF" if c.visible else "HIDE_ON"),
+                emboss=False,
+            )
+
             # Failed hint
             sub.label(
                 text="", icon=("ERROR" if c.failed else "CHECKMARK"),
@@ -270,7 +292,7 @@ class VIEW3D_PT_sketcher_constraints(SketcherVIEW3DPanel, Panel):
 
             # Context menu, shows constraint name
             props = sub.operator(
-                operators.View3D_OT_slvs_context_menu.bl_idname,
+                Operators.ContextMenu,
                 text=str(c),
                 emboss=False,
             )
@@ -285,7 +307,7 @@ class VIEW3D_PT_sketcher_constraints(SketcherVIEW3DPanel, Panel):
 
             # Delete operator
             props = sub.operator(
-                operators.View3D_OT_slvs_delete_constraint.bl_idname,
+                Operators.DeleteConstraint,
                 text="",
                 icon="X",
                 emboss=False,
@@ -297,13 +319,13 @@ class VIEW3D_PT_sketcher_constraints(SketcherVIEW3DPanel, Panel):
 
 class VIEW3D_MT_sketches(Menu):
     bl_label = "Sketches"
-    bl_idname = "VIEW3D_MT_sketches"
+    bl_idname = Menus.Sketches
 
     def draw(self, context):
         layout = self.layout
         sse = context.scene.sketcher.entities
         layout.operator(
-            operators.View3D_OT_slvs_add_sketch.bl_idname
+            Operators.AddSketch
         ).wait_for_input = True
 
         if len(sse.sketches):
@@ -311,7 +333,7 @@ class VIEW3D_MT_sketches(Menu):
 
         for i, sk in enumerate(sse.sketches):
             layout.operator(
-                operators.View3D_OT_slvs_set_active_sketch.bl_idname, text=sk.name
+                Operators.SetActiveSketch, text=sk.name
             ).index = sk.slvs_index
 
 
@@ -332,7 +354,7 @@ def sketch_selector(
         name = sketch.name
 
         row.operator(
-            operators.View3D_OT_slvs_set_active_sketch.bl_idname,
+            Operators.SetActiveSketch,
             text="Leave: " + name,
             icon="BACK",
             depress=True,
@@ -345,7 +367,7 @@ def sketch_selector(
         row.scale_y = scale_y
         # TODO: Don't show text when is_header
         row.operator(
-            operators.View3D_OT_slvs_add_sketch.bl_idname, icon="ADD"
+            Operators.AddSketch, icon="ADD"
         ).wait_for_input = True
 
         if not is_header:
@@ -359,9 +381,7 @@ def draw_object_context_menu(self, context: Context):
     ob = context.active_object
     row = layout.row()
 
-    props = row.operator(
-        operators.View3D_OT_slvs_set_active_sketch.bl_idname, text="Edit Sketch"
-    )
+    props = row.operator(Operators.SetActiveSketch, text="Edit Sketch")
 
     if ob and ob.sketch_index != -1:
         row.active = True
@@ -370,6 +390,10 @@ def draw_object_context_menu(self, context: Context):
         row.active = False
     layout.separator()
 
+def draw_add_sketch_in_add_menu(self, context):
+    self.layout.separator()
+    self.layout.operator_context = "INVOKE_DEFAULT"
+    self.layout.operator("view3d.slvs_add_sketch", text="Sketch")
 
 classes = [
     VIEW3D_UL_sketches,
@@ -384,6 +408,7 @@ def register():
         bpy.utils.register_class(cls)
 
     bpy.types.VIEW3D_MT_object_context_menu.prepend(draw_object_context_menu)
+    bpy.types.VIEW3D_MT_add.append(draw_add_sketch_in_add_menu)
 
 
 def unregister():
@@ -392,3 +417,5 @@ def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
 
+    bpy.types.VIEW3D_MT_object_context_menu.remove(draw_object_context_menu)
+    bpy.types.VIEW3D_MT_add.remove(draw_add_sketch_in_add_menu)

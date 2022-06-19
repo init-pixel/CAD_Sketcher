@@ -13,6 +13,10 @@ from . import (
     keymaps,
 )
 
+from .declarations import Operators
+
+from bpy.types import Operator
+
 modules = (
     handlers,
     class_defines,
@@ -68,7 +72,7 @@ def check_module():
 class View3D_OT_slvs_install_package(Operator):
     """Install module from local .whl file or from PyPi"""
 
-    bl_idname = "view3d.slvs_install_package"
+    bl_idname = Operators.InstallPackage
     bl_label = "Install"
 
     package: bpy.props.StringProperty(subtype="FILE_PATH")
