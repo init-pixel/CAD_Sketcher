@@ -3,7 +3,7 @@ from pathlib import Path
 import logging
 
 import bpy
-from bpy.types import AddonPreferences, Panel, Menu, Context
+from bpy.types import AddonPreferences, Panel, Menu, Context, UILayout
 from bpy.props import (
     PointerProperty,
     BoolProperty,
@@ -12,9 +12,15 @@ from bpy.props import (
     IntProperty,
     FloatProperty,
 )
+from bpy.utils import register_class, unregister_class
 from bl_ui.utils import PresetPanel
 
-from . import functions, global_data, theme, units, install
+from . import functions
+from . import global_data
+from . import theme
+from . import units
+from . import install
+from . import addon_updater_ops
 
 
 log_levels = [
@@ -179,8 +185,46 @@ class Preferences(AddonPreferences):
     )
     text_size: IntProperty(name="Text Size", default=15, min=5, soft_max=25)
 
+    # Addon updater properties
+    auto_check_update: BoolProperty(
+        name="Auto-check for Update",
+        description="If enabled, auto-check for updates using an interval",
+        default=False,
+    )
+
+    updater_interval_months: IntProperty(
+        name="Months",
+        description="Number of months between checking for updates",
+        default=0,
+        min=0,
+    )
+
+    updater_interval_days: IntProperty(
+        name="Days",
+        description="Number of days between checking for updates",
+        default=7,
+        min=0,
+        max=31,
+    )
+
+    updater_interval_hours: IntProperty(
+        name="Hours",
+        description="Number of hours between checking for updates",
+        default=0,
+        min=0,
+        max=23,
+    )
+
+    updater_interval_minutes: IntProperty(
+        name="Minutes",
+        description="Number of minutes between checking for updates",
+        default=0,
+        min=0,
+        max=59,
+    )
+
     def draw(self, context: Context):
-        layout = self.layout
+        layout: UILayout = self.layout
         layout.use_property_split = True
 
         box = layout.box()
@@ -271,6 +315,9 @@ class Preferences(AddonPreferences):
 
             list_props_recursiv(self.theme_settings)
 
+        # TODO: Cleanup updater prop rendering
+        addon_updater_ops.update_settings_ui(self, context)
+
 
 classes = (
     SKETCHER_MT_theme_presets,
@@ -280,14 +327,10 @@ classes = (
 
 
 def register():
-    from bpy.utils import register_class
-
     for cls in classes:
         register_class(cls)
 
 
 def unregister():
-    from bpy.utils import unregister_class
-
     for cls in reversed(classes):
         unregister_class(cls)

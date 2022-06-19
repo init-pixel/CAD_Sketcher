@@ -49,9 +49,13 @@ else:
 
 from tempfile import gettempdir
 from pathlib import Path
+import os
+import shutil
+import sys
 import logging
 
 from . import addon_updater_ops
+from . import debug_operators
 
 logger = logging.getLogger(__name__)
 
@@ -80,10 +84,6 @@ def update_logger():
 
 
 def ensure_addon_presets(force_write: bool = False):
-    import os
-    import shutil
-    import sys
-
     scripts_folder = bpy.utils.user_resource("SCRIPTS")
     presets_dir = os.path.join(scripts_folder, "presets", "bgs")
 
@@ -106,13 +106,16 @@ def ensure_addon_presets(force_write: bool = False):
 
 def register():
     # Register base
-    # addon_updater_ops.register(bl_info)
+    addon_updater_ops.register(bl_info)
     ensure_addon_presets()
     theme.register()
     preferences.register()
     install.register()
     update_logger()
     icon_manager.load()
+
+    if __debug__:
+        debug_operators.register()
 
     logger.info("Enabled CAD Sketcher base, version: {}".format(bl_info["version"]))
 
@@ -127,7 +130,7 @@ def register():
 
 
 def unregister():
-    # addon_updater_ops.unregister(bl_info)
+    addon_updater_ops.unregister()
     install.unregister()
     preferences.unregister()
     theme.unregister()
@@ -136,3 +139,6 @@ def unregister():
         return
 
     install.unregister_full()
+
+    if __debug__:
+        debug_operators.unregister()
