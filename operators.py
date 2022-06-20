@@ -1,38 +1,38 @@
 ############### Operators ###############
-import math
 import logging
-from typing import Generator, Union
+import math
 from collections import namedtuple
+from typing import Generator, Union
 
-import bpy
-from bl_operators.presets import AddPresetBase
 import bgl
+import bpy
 import gpu
-from bpy.types import (
-    Operator,
-    Context,
-    PropertyGroup,
-    Event,
-    Object,
-    Mesh,
-    Scene,
-    Context,
-)
+from bl_operators.presets import AddPresetBase
 from bpy.props import (
-    IntProperty,
-    StringProperty,
+    BoolProperty,
+    EnumProperty,
     FloatProperty,
     FloatVectorProperty,
-    EnumProperty,
-    BoolProperty,
+    IntProperty,
+    StringProperty
+)
+from bpy.types import (
+    Context,
+    Event,
+    Mesh,
+    Object,
+    Operator,
+    PropertyGroup,
+    Scene
 )
 from mathutils import Vector
 from mathutils.geometry import intersect_line_plane
 
-from . import global_data, functions, class_defines, convertors
-from .class_defines import SlvsGenericEntity
+from . import class_defines, convertors, functions, global_data
+from .class_defines import SlvsGenericEntity, solve_system
+from .declarations import GizmoGroups, Operators, WorkSpaceTools
 from .keymaps import get_key_map_desc
-from .declarations import Operators, GizmoGroups, WorkSpaceTools
+from .solver import Solver
 
 logger = logging.getLogger(__name__)
 
@@ -506,14 +506,14 @@ class View3D_OT_slvs_tweak(Operator):
         return {"RUNNING_MODAL"}
 
 
-def write_selection_buffer_image(image_name):
+def write_selection_buffer_image(image_name: str):
     offscreen = global_data.offscreen
     width, height = offscreen.width, offscreen.height
     buffer = bgl.Buffer(bgl.GL_FLOAT, width * height * 4)
     with offscreen.bind():
         bgl.glReadPixels(0, 0, width, height, bgl.GL_RGBA, bgl.GL_FLOAT, buffer)
 
-    if not image_name in bpy.data.images:
+    if image_name not in bpy.data.images:
         bpy.data.images.new(image_name, width, height)
     image = bpy.data.images[image_name]
     image.scale(width, height)

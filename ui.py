@@ -1,11 +1,8 @@
-from __future__ import annotations
 import bpy
 from bpy.types import Panel, Menu, UIList, Context, UILayout
 
-from . import class_defines
 from . import functions, class_defines, operators
 from .declarations import Menus, Operators, Panels
-from .operators import constraint_operators
 
 
 class VIEW3D_UL_sketches(UIList):
@@ -63,16 +60,14 @@ class VIEW3D_UL_sketches(UIList):
 
 
 class VIEW3D_PT_sketcher_base(Panel):
-    bl_label = "Sketcher"
-    bl_idname = Panels.Sketcher
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Sketcher"
 
 
-class VIEW3D_PT_sketcher(VIEW3D_PT_sketcher_base, Panel):
+class VIEW3D_PT_sketcher(VIEW3D_PT_sketcher_base):
     bl_label = "Sketcher"
-    bl_idname = "VIEW3D_PT_sketcher"
+    bl_idname = Panels.Sketcher
 
     def draw(self, context: Context):
         layout = self.layout
@@ -128,16 +123,15 @@ class VIEW3D_PT_sketcher(VIEW3D_PT_sketcher_base, Panel):
                 "ui_active_sketch",
             )
 
-        layout.label(text="Constraints:")
-        col = layout.column(align=True)
-        for op in constraint_operators:
-            col.operator(op.bl_idname)
 
-    @classmethod
-    def poll(cls, context: Context):
+class VIEW3D_PT_sketcher_debug(VIEW3D_PT_sketcher_base):
+    bl_label = "Debug Settings"
+    bl_idname = Panels.SketcherDebugPanel
+
+    def draw(self, context: Context):
+        layout = self.layout
+
         prefs = functions.get_prefs()
-        return prefs.show_debug_settings
-
         layout.operator(Operators.WriteSelectionTexture)
         layout.operator(Operators.Solve)
         layout.operator(Operators.Solve, text="Solve All").all = True
@@ -148,10 +142,15 @@ class VIEW3D_PT_sketcher(VIEW3D_PT_sketcher_base, Panel):
         layout.prop(prefs, "all_entities_selectable")
         layout.prop(prefs, "force_redraw")
 
+    @classmethod
+    def poll(cls, context: Context):
+        prefs = functions.get_prefs()
+        return prefs.show_debug_settings
 
-class VIEW3D_PT_sketcher_add_constraints(VIEW3D_PT_sketcher_base, Panel):
+
+class VIEW3D_PT_sketcher_add_constraints(VIEW3D_PT_sketcher_base):
     bl_label = "Add Constraints"
-    bl_idname = "VIEW3D_PT_sketcher_add_entities"
+    bl_idname = Panels.SketcherAddContraint
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context: Context):
@@ -162,15 +161,12 @@ class VIEW3D_PT_sketcher_add_constraints(VIEW3D_PT_sketcher_base, Panel):
             col.operator(op.bl_idname)
 
 
-class VIEW3D_PT_sketcher_entities(VIEW3D_PT_sketcher_base, Panel):
+class VIEW3D_PT_sketcher_entities(VIEW3D_PT_sketcher_base):
     bl_label = "Entities"
     bl_idname = Panels.SketcherEntities
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "Sketcher"
     bl_options = {"DEFAULT_CLOSED"}
 
-    def draw(self, context):
+    def draw(self, context: Context):
         layout = self.layout
         box = layout.box()
         col = box.column(align=True)
@@ -234,15 +230,12 @@ class VIEW3D_PT_sketcher_entities(VIEW3D_PT_sketcher_base, Panel):
             props.highlight_hover = True
 
 
-class VIEW3D_PT_sketcher_constraints(VIEW3D_PT_sketcher_base, Panel):
+class VIEW3D_PT_sketcher_constraints(VIEW3D_PT_sketcher_base):
     bl_label = "Constraints"
     bl_idname = Panels.SketcherContraints
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "Sketcher"
     bl_options = {"DEFAULT_CLOSED"}
 
-    def draw(self, context):
+    def draw(self, context: Context):
         layout = self.layout
         box = layout.box()
         col = box.column(align=True)
@@ -299,7 +292,7 @@ class VIEW3D_MT_sketches(Menu):
     bl_label = "Sketches"
     bl_idname = Menus.Sketches
 
-    def draw(self, context):
+    def draw(self, context: Context):
         layout = self.layout
         sse = context.scene.sketcher.entities
         layout.operator(Operators.AddSketch).wait_for_input = True
@@ -362,7 +355,7 @@ def draw_object_context_menu(self, context: Context):
     layout.separator()
 
 
-def draw_add_sketch_in_add_menu(self, context):
+def draw_add_sketch_in_add_menu(self, context: Context):
     self.layout.separator()
     self.layout.operator_context = "INVOKE_DEFAULT"
     self.layout.operator("view3d.slvs_add_sketch", text="Sketch")
