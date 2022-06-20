@@ -14,17 +14,9 @@ from bpy.props import (
     FloatProperty,
     FloatVectorProperty,
     IntProperty,
-    StringProperty
+    StringProperty,
 )
-from bpy.types import (
-    Context,
-    Event,
-    Mesh,
-    Object,
-    Operator,
-    PropertyGroup,
-    Scene
-)
+from bpy.types import Context, Event, Mesh, Object, Operator, PropertyGroup, Scene
 from mathutils import Vector
 from mathutils.geometry import intersect_line_plane
 
@@ -653,7 +645,7 @@ def get_mesh_element(
     closest_type = ""
     closest_dist = None
 
-    loc = obj_eval.matrix_worl.inverted() @ loc
+    loc = obj_eval.matrix_world.inverted() @ loc
     me = obj_eval.data
     polygon = me.polygons[face_index]
 
