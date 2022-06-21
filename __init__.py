@@ -1,3 +1,6 @@
+# Ignore import lint error
+# flake8: noqa: 402
+
 bl_info = {
     "name": "CAD Sketcher",
     "author": "hlorus",
@@ -54,7 +57,7 @@ import shutil
 import sys
 import logging
 
-from .addon_updater import addon_updater_ops
+from . import addon_updater_ops
 from . import debug_operators
 
 logger = logging.getLogger(__name__)
