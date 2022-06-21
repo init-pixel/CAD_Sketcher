@@ -54,7 +54,7 @@ import shutil
 import sys
 import logging
 
-from . import addon_updater_ops
+from .addon_updater import addon_updater_ops
 from . import debug_operators
 
 logger = logging.getLogger(__name__)
