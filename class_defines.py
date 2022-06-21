@@ -1,6 +1,6 @@
-import math
 from typing import Union, Tuple, Type
 import logging
+import math
 
 import bpy
 from bpy.types import PropertyGroup, Context
@@ -15,10 +15,10 @@ from bpy.props import (
     EnumProperty,
     StringProperty,
 )
-import gpu
 import bgl
-from gpu_extras.batch import batch_for_shader
 from bpy_extras.view3d_utils import location_3d_to_region_2d
+import gpu
+from gpu_extras.batch import batch_for_shader
 import mathutils
 from mathutils import Vector, Matrix, Euler
 

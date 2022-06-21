@@ -1,10 +1,9 @@
-from mathutils import Vector, Matrix
-
 import bpy
 import bgl
 import gpu
 import blf
 from bpy.types import Gizmo, GizmoGroup, Context
+from mathutils import Vector, Matrix
 
 from .declarations import GizmoGroups, Gizmos, Operators
 from . import (

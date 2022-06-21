@@ -544,7 +544,7 @@ def ignore_hover(entity):
 
 
 # TODO: could probably check entity type only through index, instead of getting the entity first...
-def get_hovered(context, *types):
+def get_hovered(context: Context, *types):
     hovered = global_data.hover
     entity = None
 
@@ -717,13 +717,15 @@ def _get_pointer_get_set(index: int):
     return func, setter
 
 
-mesh_element_types = {bpy.types.MeshVertex, bpy.types.MeshEdge, bpy.types.MeshPolygon}
-
-
 class StatefulOperator:
     state_index: IntProperty(options={"HIDDEN", "SKIP_SAVE"})
     wait_for_input: BoolProperty(options={"HIDDEN", "SKIP_SAVE"}, default=True)
     continuous_draw: BoolProperty(name="Continuous Draw", default=False)
+    mesh_element_types = {
+        bpy.types.MeshVertex,
+        bpy.types.MeshEdge,
+        bpy.types.MeshPolygon,
+    }
 
     executed = False
     _state_data = {}
@@ -1705,7 +1707,7 @@ OperatorState = namedtuple(
 # del namedtuple
 
 
-def state_from_args(name, **kwargs):
+def state_from_args(name: str, **kwargs):
     """
     Use so each state can avoid defining all members of the named tuple.
     """
@@ -2004,13 +2006,12 @@ class Operator2d(GenericEntityOp):
 
 class_defines.slvs_entity_pointer(Operator2d, "sketch")
 
-p3d_state1_doc = ("Location", "Set point's location.")
-
 
 class View3D_OT_slvs_add_point3d(Operator, Operator3d):
     bl_idname = Operators.AddPoint3D
     bl_label = "Add Solvespace 3D Point"
     bl_options = {"REGISTER", "UNDO"}
+    p3d_state1_doc = ("Location", "Set point's location.")
 
     location: FloatVectorProperty(name="Location", subtype="XYZ")
 
@@ -2046,14 +2047,14 @@ types_point_3d = (
     *((bpy.types.MeshVertex,) if False else ()),
 )
 
-l3d_state1_doc = ("Startpoint", "Pick or place line's starting point.")
-l3d_state2_doc = ("Endpoint", "Pick or place line's ending point.")
-
 
 class View3D_OT_slvs_add_line3d(Operator, Operator3d):
     bl_idname = Operators.AddLine3D
     bl_label = "Add Solvespace 3D Line"
     bl_options = {"REGISTER", "UNDO"}
+
+    l3d_state1_doc = ("Startpoint", "Pick or place line's starting point.")
+    l3d_state2_doc = ("Endpoint", "Pick or place line's ending point.")
 
     continuous_draw: BoolProperty(name="Continuous Draw", default=True)
 
@@ -2105,14 +2106,13 @@ class View3D_OT_slvs_add_line3d(Operator, Operator3d):
                 solve_system(context)
 
 
-wp_state1_doc = ("Origin", "Pick or place workplanes's origin.")
-wp_state2_doc = ("Orientation", "Set workplane's orientation.")
-
-
 class View3D_OT_slvs_add_workplane(Operator, Operator3d):
     bl_idname = Operators.AddWorkPlane
     bl_label = "Add Solvespace Workplane"
     bl_options = {"REGISTER", "UNDO"}
+
+    wp_state1_doc = ("Origin", "Pick or place workplanes's origin.")
+    wp_state2_doc = ("Orientation", "Set workplane's orientation.")
 
     states = (
         state_from_args(
@@ -2186,13 +2186,15 @@ class View3D_OT_slvs_add_workplane(Operator, Operator3d):
                 solve_system(context)
 
 
-wp_face_state1_doc = ("Face", "Pick a mesh face to use as workplanes's transformation.")
-
-
 class View3D_OT_slvs_add_workplane_face(Operator, Operator3d):
     bl_idname = Operators.AddWorkPlaneFace
     bl_label = "Add Solvespace Workplane"
     bl_options = {"REGISTER", "UNDO"}
+
+    wp_face_state1_doc = (
+        "Face",
+        "Pick a mesh face to use as workplanes's transformation.",
+    )
 
     states = (
         state_from_args(
@@ -2230,14 +2232,14 @@ class View3D_OT_slvs_add_workplane_face(Operator, Operator3d):
         return True
 
 
-sketch_state1_doc = ["Workplane", "Pick a workplane as base for the sketch."]
-
 # TODO:
 # - Draw sketches
 class View3D_OT_slvs_add_sketch(Operator, Operator3d):
     bl_idname = Operators.AddSketch
     bl_label = "Add Sketch"
     bl_options = {"UNDO"}
+
+    sketch_state1_doc = ["Workplane", "Pick a workplane as base for the sketch."]
 
     states = (
         state_from_args(
@@ -2288,13 +2290,11 @@ class View3D_OT_slvs_add_sketch(Operator, Operator3d):
             switch_sketch_mode(self, context, to_sketch_mode=False)
 
 
-p2d_state1_doc = ("Coordinates", "Set point's coordinates on the sketch.")
-
-
 class View3D_OT_slvs_add_point2d(Operator, Operator2d):
     bl_idname = Operators.AddPoint2D
     bl_label = "Add Solvespace 2D Point"
     bl_options = {"REGISTER", "UNDO"}
+    p2d_state1_doc = ("Coordinates", "Set point's coordinates on the sketch.")
 
     coordinates: FloatVectorProperty(name="Coordinates", size=2)
 
@@ -2338,14 +2338,13 @@ types_point_2d = (
 )
 
 
-l2d_state1_doc = ("Startpoint", "Pick or place line's starting Point.")
-l2d_state2_doc = ("Endpoint", "Pick or place line's ending Point.")
-
-
 class View3D_OT_slvs_add_line2d(Operator, Operator2d):
     bl_idname = Operators.AddLine2D
     bl_label = "Add Solvespace 2D Line"
     bl_options = {"REGISTER", "UNDO"}
+
+    l2d_state1_doc = ("Startpoint", "Pick or place line's starting Point.")
+    l2d_state2_doc = ("Endpoint", "Pick or place line's ending Point.")
 
     continuous_draw: BoolProperty(name="Continuous Draw", default=True)
 
@@ -2411,14 +2410,13 @@ class View3D_OT_slvs_add_line2d(Operator, Operator2d):
                 solve_system(context, sketch=self.sketch)
 
 
-circle_state1_doc = ("Center", "Pick or place circle's center point.")
-circle_state2_doc = ("Radius", "Set circle's radius.")
-
-
 class View3D_OT_slvs_add_circle2d(Operator, Operator2d):
     bl_idname = Operators.AddCircle2D
     bl_label = "Add Solvespace 2D Circle"
     bl_options = {"REGISTER", "UNDO"}
+
+    circle_state1_doc = ("Center", "Pick or place circle's center point.")
+    circle_state2_doc = ("Radius", "Set circle's radius.")
 
     radius: FloatProperty(
         name="Radius",
@@ -2479,15 +2477,14 @@ class View3D_OT_slvs_add_circle2d(Operator, Operator2d):
                 solve_system(context, sketch=self.sketch)
 
 
-arc_state1_doc = ("Center", "Pick or place center point.")
-arc_state2_doc = ("Startpoint", "Pick or place starting point.")
-arc_state3_doc = ("Endpoint", "Pick or place ending point.")
-
-
 class View3D_OT_slvs_add_arc2d(Operator, Operator2d):
     bl_idname = Operators.AddArc2D
     bl_label = "Add Solvespace 2D Arc"
     bl_options = {"REGISTER", "UNDO"}
+
+    arc_state1_doc = ("Center", "Pick or place center point.")
+    arc_state2_doc = ("Startpoint", "Pick or place starting point.")
+    arc_state3_doc = ("Endpoint", "Pick or place ending point.")
 
     states = (
         state_from_args(
@@ -2567,14 +2564,13 @@ class View3D_OT_slvs_add_arc2d(Operator, Operator2d):
             self.solve_state(context, self.sketch)
 
 
-rect_state1_doc = ("Startpoint", "Pick or place starting point.")
-rect_state2_doc = ("Endpoint", "Pick or place ending point.")
-
-
 class View3D_OT_slvs_add_rectangle(Operator, Operator2d):
     bl_idname = Operators.AddRectangle
     bl_label = "Add Rectangle"
     bl_options = {"REGISTER", "UNDO"}
+
+    rect_state1_doc = ("Startpoint", "Pick or place starting point.")
+    rect_state2_doc = ("Endpoint", "Pick or place ending point.")
 
     states = (
         state_from_args(
@@ -2868,13 +2864,12 @@ class TrimSegment:
             context.scene.sketcher.entities.remove(self.segment.slvs_index)
 
 
-trim_state1_doc = ("Segment", "Segment to trim.")
-
-
 class View3D_OT_slvs_trim(Operator, Operator2d):
     bl_idname = Operators.Trim
     bl_label = "Trim Segment"
     bl_options = {"REGISTER", "UNDO"}
+
+    trim_state1_doc = ("Segment", "Segment to trim.")
 
     radius: FloatProperty(name="Radius")
 
@@ -3659,7 +3654,7 @@ def mesh_from_temporary(mesh: Mesh, name: str, existing_mesh: Union[bool, None] 
     return new_mesh
 
 
-def _cleanup_data(sketch, mode):
+def _cleanup_data(sketch, mode: str):
     if sketch.target_object and mode != "MESH":
         sketch.target_object.sketch_index = -1
         bpy.data.objects.remove(sketch.target_object, do_unlink=True)

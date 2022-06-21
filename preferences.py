@@ -45,7 +45,7 @@ def get_log_level(self):
     return item.value
 
 
-def set_log_level(self, value):
+def set_log_level(self, value: str):
     items = self.bl_rna.properties["logging_level"].enum_items
     item = items[value]
 
@@ -62,18 +62,18 @@ def get_wheel() -> str:
 
     if platform == "linux" or platform == "linux2":
         # Linux
-        platform_strig = "linux"
+        platform_string = "linux"
     elif platform == "darwin":
         # OS X
-        platform_strig = "macosx"
+        platform_string = "macosx"
     elif platform == "win32":
         # Windows
-        platform_strig = "win"
+        platform_string = "win"
 
     matches = list(
         p.glob(
             "**/*cp{}{}*{}*.whl".format(
-                version_info.major, version_info.minor, platform_strig
+                version_info.major, version_info.minor, platform_string
             )
         )
     )
