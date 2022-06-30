@@ -332,7 +332,8 @@ def sketch_selector(
     else:
         row.scale_y = scale_y
         # TODO: Don't show text when is_header
-        row.operator(Operators.AddSketch, icon="ADD").wait_for_input = True
+        row.operator(Operators.AddSketch, icon="ADD")
+        # row.operator(Operators.AddSketch, icon="ADD").wait_for_input = True
 
         if not is_header:
             row = layout.row()

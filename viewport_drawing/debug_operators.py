@@ -5,8 +5,9 @@ import bmesh
 from bpy.props import IntProperty
 from bpy.utils import register_class, unregister_class
 from bpy.types import Operator, Context, Event
+from cv2 import HOGDescriptor
 
-from .mesh_generation import DrawingMesh
+from .drawing import DrawnMesh
 from . import io
 
 SCRIPTS_DIR = Path(__file__).parent
@@ -25,52 +26,47 @@ class VIEW3D_OT_test_geometry_drawing(Operator):
     }
 
     def __init__(self):
-        print("STARTING")
         mesh_name = "workplanes"
         blend_file = MESHES_DIR / "workplanes.blend"
-        self.workplanes_mesh = DrawingMesh.from_file(blend_file, mesh_name)
-        self.handle = None
+        self.workplanes_mesh = DrawnMesh.from_file(blend_file, mesh_name)
+        self.draw_handle = None
         self.mouse_xy = None
-        self.highlight_faces = None
-        self.active_face_map = None
+        self.active_face_maps = None
 
     def invoke(self, context: Context, event: Event):
         args = (self, context)
-        self.handle = bpy.types.SpaceView3D.draw_handler_add(
+        self.draw_handle = bpy.types.SpaceView3D.draw_handler_add(
             self.workplanes_mesh.draw, args, "WINDOW", "POST_VIEW"
         )
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 
-    def _rollover_detect(self, context: Context):
-        ray_result = self.workplanes_mesh.ray_from_screen(context, self.mouse_xy)
-        if not ray_result.failed:
-            face_map_id = self.workplanes_mesh.face_map_lookup(ray_result.index)
-            self.active_face_map = face_map_id
-            face_map_members = self.workplanes_mesh.faces_by_map_id(face_map_id)
-            self.highlight_faces = face_map_members
+    def _rollover_detect(self, context: Context, event: Event):
+        hover_result = self.workplanes_mesh.ray_from_mouse(
+            context, event, face_map=True
+        )
+        if not hover_result.failed:
+            self.active_face_maps = [hover_result.face_map]
         else:
-            self.highlight_faces = None
-            self.active_face_map = None
+            self.active_face_maps = None
 
     def modal(self, context: Context, event: Event):
         context.area.tag_redraw()
         if event.type == "MOUSEMOVE":
             self.mouse_xy = (event.mouse_region_x, event.mouse_region_y)
-            self._rollover_detect(context)
-        elif event.type == "LEFTMOUSE" and self.active_face_map is not None:  # Confirm
-            self.mouse_xy = (event.mouse_region_x, event.mouse_region_y)
-            bpy.types.SpaceView3D.draw_handler_remove(self.handle, "WINDOW")
+            self._rollover_detect(context, event)
+        elif event.type == "LEFTMOUSE" and self.active_face_maps is not None:  # Confirm
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle, "WINDOW")
             return self.execute(context)
         elif event.type in {"RIGHTMOUSE", "ESC"}:  # Cancel
-            bpy.types.SpaceView3D.draw_handler_remove(self.handle, "WINDOW")
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle, "WINDOW")
             return {"CANCELLED"}
         else:
             return {"PASS_THROUGH"}
         return {"RUNNING_MODAL"}
 
     def execute(self, context: Context):
-        print(self.active_face_map, self.workplane_face_maps[self.active_face_map])
+        print(self.workplane_face_maps[self.active_face_maps[0]])
         return {"FINISHED"}
 
 

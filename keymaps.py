@@ -97,11 +97,11 @@ tool_access = (
     tool_invoke_kmi("A", WorkSpaceTools.AddArc2D, Operators.AddArc2D,),
     tool_invoke_kmi("R", WorkSpaceTools.AddRectangle, Operators.AddRectangle,),
     tool_invoke_kmi("Y", WorkSpaceTools.Trim, Operators.Trim,),
-    (
-        Operators.AddSketch,
-        {"type": "S", "value": "PRESS"},
-        {"properties": [("wait_for_input", True),]},
-    ),
+    # (
+    #     Operators.AddSketch,
+    #     {"type": "S", "value": "PRESS"},
+    #     {"properties": [("wait_for_input", True),]},
+    # ),
     *constraint_access,
 )
 
@@ -157,11 +157,11 @@ def register():
         addon_keymaps.append((km, kmi))
 
         # Add Sketch
-        kmi = km.keymap_items.new(
-            Operators.AddSketch, "A", "PRESS", ctrl=True, shift=True
-        )
-        kmi.properties.wait_for_input = True
-        addon_keymaps.append((km, kmi))
+        # kmi = km.keymap_items.new(
+        #     Operators.AddSketch, "A", "PRESS", ctrl=True, shift=True
+        # )
+        # kmi.properties.wait_for_input = True
+        # addon_keymaps.append((km, kmi))
 
 
 def unregister():

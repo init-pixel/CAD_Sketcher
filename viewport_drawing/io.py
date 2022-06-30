@@ -37,7 +37,8 @@ def temp_bmesh(mesh: Union[None, Mesh]) -> Generator[BMesh, None, None]:
         bm.free()
 
 
-def load_as_bmesh(filepath: Path, name: str):
+def load_as_bmesh(filepath: Path, name: str) -> BMesh:
+    """ Load mesh from external file as a bmesh """
     with read_external_mesh(filepath, name) as mesh:
         bm = bmesh.new()
         mesh = load_mesh(filepath, name)

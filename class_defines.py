@@ -1,4 +1,4 @@
-from typing import Union, Tuple, Type
+from typing import Generator, Union, Tuple, Type
 import logging
 import math
 
@@ -532,7 +532,7 @@ def mean(lst):
 
 
 def get_face_midpoint(quat, ob, face):
-    # get average distance from origin to face vertices
+    """ Average distance from origin to face vertices. """
     mesh = ob.data
     coords = [mesh.vertices[i].co.copy() for i in face.vertices]
     quat_inv = quat.inverted()
@@ -3418,7 +3418,7 @@ class SketcherProps(PropertyGroup):
     ui_active_sketch: IntProperty()
 
     @property
-    def all(self):
+    def all(self) -> Generator[Union[SlvsGenericEntity, SlvsConstraints], None, None]:
         """Iterate over entities and constraints of every type"""
         for entity in self.entities.all:
             yield entity

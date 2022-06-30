@@ -61,11 +61,27 @@ def ensure_pip():
 
 
 def show_package_info(package: str):
+
     try:
         subprocess.call([global_data.PYPATH, "-m", "pip", "show", package])
     except Exception as e:
         print(e)
         pass
+
+
+def show_ui_message_popup(
+    message: str = "", title: str = "Sketcher Warning", icon: str = "INFO"
+):
+    """
+    Trigger a ui popup message
+    NOTE: Perhaps better located in ui.py, but would currently require circular
+          dependency with operators.py
+    """
+
+    def draw(self, context: Context):
+        self.layout.label(text=message)
+
+    bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
 
 
 def add_new_empty(context, location: Vector, name="") -> Object:
@@ -178,7 +194,6 @@ def coords_arc_2d(
     offset: float = 0.0,
     type="LINE_STRIP",
 ):
-    # coords = []
     coords = deque()
     segments = max(segments, 1)
 
@@ -248,7 +263,7 @@ def get_picking_origin_end(context: Context, coords: Vector) -> Tuple[Vector, Ve
     return ray_origin, end_point
 
 
-def nearest_point_line_line(p1: float, d1: float, p2: float, d2: float) -> Vector:
+def nearest_point_line_line(p1: Vector, d1: Vector, p2: Vector, d2: Vector) -> Vector:
     n = d1.cross(d2)
     n2 = d2.cross(n)
     return p1 + ((p2 - p1).dot(n2) / d1.dot(n2)) * d1

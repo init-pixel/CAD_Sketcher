@@ -1,3 +1,5 @@
+import math
+
 import bpy
 import bgl
 import gpu
