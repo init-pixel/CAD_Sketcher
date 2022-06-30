@@ -10,10 +10,10 @@ from typing import Iterable, Tuple, Union, NamedTuple
 from dataclasses import dataclass
 
 import bmesh
-from bmesh.types import BMesh, BMVert, BMFace, BMEdge
+from bmesh.types import BMesh, BMFace
 from bpy.types import Operator, Context, Event
 from bpy_extras import view3d_utils
-from mathutils import Vector, Matrix
+from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 import gpu
 from gpu_extras.batch import batch_for_shader
@@ -23,7 +23,6 @@ from .geo import (
     face_map_lookup,
     faces_by_map_id,
     points_and_faces,
-    bounding_points_and_edges,
 )
 
 
