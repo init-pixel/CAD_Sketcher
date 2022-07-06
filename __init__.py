@@ -106,6 +106,7 @@ def ensure_addon_presets(force_write: bool = False):
 
 def register():
     # Register base
+    # Repo used for addon updater needs a tagged release
     addon_updater_ops.register(bl_info)
     ensure_addon_presets()
     theme.register()
