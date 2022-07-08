@@ -2222,122 +2222,60 @@ class View3D_OT_slvs_add_workplane_face(Operator, Operator3d):
 
 # TODO:
 # - Draw sketches
-# class View3D_OT_slvs_add_sketch(Operator, Operator3d):
-#     bl_idname = Operators.AddSketch
-#     bl_label = "Add Sketch"
-#     bl_options = {"UNDO"}
-
-#     sketch_state1_doc = ["Workplane", "Pick a workplane as base for the sketch."]
-
-#     states = (
-#         state_from_args(
-#             sketch_state1_doc[0],
-#             description=sketch_state1_doc[1],
-#             pointer="wp",
-#             types=(class_defines.SlvsWorkplane,),
-#             property=None,
-#             use_create=False,
-#         ),
-#     )
-
-#     __doc__ = stateful_op_desc(
-#         "Add a sketch", state_desc(*sketch_state1_doc, (class_defines.SlvsWorkplane,)),
-#     )
-
-#     def prepare_origin_elements(self, context):
-#         context.scene.sketcher.entities.ensure_origin_elements(context)
-#         return True
-
-#     def init(self, context: Context, event: Event):
-#         switch_sketch_mode(self, context, to_sketch_mode=True)
-#         self.prepare_origin_elements(context)
-#         bpy.ops.ed.undo_push(message="Ensure Origin Elements")
-#         context.scene.sketcher.show_origin = True
-
-#     def main(self, context: Context):
-#         sse = context.scene.sketcher.entities
-#         sketch = sse.add_sketch(self.wp)
-
-#         # Add point at origin
-#         # NOTE: Maybe this could create a reference entity of the main origin?
-#         p = sse.add_point_2d((0.0, 0.0), sketch)
-#         p.fixed = True
-
-#         context.scene.sketcher.active_sketch = sketch
-#         self.target = sketch
-#         return True
-
-#     def fini(self, context: Context, succeed):
-#         context.scene.sketcher.show_origin = False
-#         if hasattr(self, "target"):
-#             logger.debug("Add: {}".format(self.target))
-
-#         if succeed:
-#             self.wp.visible = False
-#         else:
-#             switch_sketch_mode(self, context, to_sketch_mode=False)
-
-
-class View3D_OT_slvs_add_sketch(Operator):
+class View3D_OT_slvs_add_sketch(Operator, Operator3d):
     bl_idname = Operators.AddSketch
     bl_label = "Add Sketch"
     bl_options = {"UNDO"}
 
-    workplane_face_maps = {
-        0: "xz",
-        1: "xy",
-        2: "yz",
-    }
+    sketch_state1_doc = ["Workplane", "Pick a workplane as base for the sketch."]
 
-    def __init__(self):
-        mesh_name = "workplanes"
-        blend_file = Path(__file__).parent / "ui_meshes/workplanes.blend"
-        prefs = functions.get_prefs()
-        default_color = prefs.theme_settings.entity.default
-        highlight_color = prefs.theme_settings.entity.highlight
+    states = (
+        state_from_args(
+            sketch_state1_doc[0],
+            description=sketch_state1_doc[1],
+            pointer="wp",
+            types=(class_defines.SlvsWorkplane,),
+            property=None,
+            use_create=False,
+        ),
+    )
 
-        self.workplanes_mesh = DrawnMesh.from_file(
-            blend_file, mesh_name, default_color, highlight_color,
-        )
-        self.draw_handle = None
-        self.mouse_xy = None
-        self.active_face_maps = None
+    __doc__ = stateful_op_desc(
+        "Add a sketch", state_desc(*sketch_state1_doc, (class_defines.SlvsWorkplane,)),
+    )
 
-    def _rollover_detect(self, context: Context, event: Event):
-        hover_result = self.workplanes_mesh.ray_from_mouse(
-            context, event, face_map=True
-        )
-        if not hover_result.failed:
-            self.active_face_maps = [hover_result.face_map]
+    def prepare_origin_elements(self, context):
+        context.scene.sketcher.entities.ensure_origin_elements(context)
+        return True
+
+    def init(self, context: Context, event: Event):
+        switch_sketch_mode(self, context, to_sketch_mode=True)
+        self.prepare_origin_elements(context)
+        bpy.ops.ed.undo_push(message="Ensure Origin Elements")
+        context.scene.sketcher.show_origin = True
+
+    def main(self, context: Context):
+        sse = context.scene.sketcher.entities
+        sketch = sse.add_sketch(self.wp)
+
+        # Add point at origin
+        # NOTE: Maybe this could create a reference entity of the main origin?
+        p = sse.add_point_2d((0.0, 0.0), sketch)
+        p.fixed = True
+
+        context.scene.sketcher.active_sketch = sketch
+        self.target = sketch
+        return True
+
+    def fini(self, context: Context, succeed):
+        context.scene.sketcher.show_origin = False
+        if hasattr(self, "target"):
+            logger.debug("Add: {}".format(self.target))
+
+        if succeed:
+            self.wp.visible = False
         else:
-            self.active_face_maps = None
-
-    def invoke(self, context: Context, event: Event):
-        args = (self, context)
-        self.draw_handle = bpy.types.SpaceView3D.draw_handler_add(
-            self.workplanes_mesh.draw, args, "WINDOW", "POST_VIEW"
-        )
-        context.window_manager.modal_handler_add(self)
-        return {"RUNNING_MODAL"}
-
-    def modal(self, context: Context, event: Event):
-        context.area.tag_redraw()
-        if event.type == "MOUSEMOVE":
-            self.mouse_xy = (event.mouse_region_x, event.mouse_region_y)
-            self._rollover_detect(context, event)
-        elif event.type == "LEFTMOUSE" and self.active_face_maps is not None:  # Confirm
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle, "WINDOW")
-            return self.execute(context)
-        elif event.type in {"RIGHTMOUSE", "ESC"}:  # Cancel
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle, "WINDOW")
-            return {"CANCELLED"}
-        else:
-            return {"PASS_THROUGH"}
-        return {"RUNNING_MODAL"}
-
-    def execute(self, context: Context):
-        # NOTE: I can only eat so much spaghetti
-        return {"FINISHED"}
+            switch_sketch_mode(self, context, to_sketch_mode=False)
 
 
 class View3D_OT_slvs_add_point2d(Operator, Operator2d):
