@@ -1,6 +1,7 @@
 from typing import Generator, Union, Tuple, Type
 import logging
 import math
+from statistics import mean
 
 import bpy
 from bpy.types import PropertyGroup, Context
@@ -459,6 +460,7 @@ class SlvsPoint3D(Point3D, PropertyGroup):
         sub.prop(self, "location")
         return sub
 
+
 class SlvsLine3D(SlvsGenericEntity, PropertyGroup):
     """Representation of a line in 3D Space.
 
@@ -552,9 +554,6 @@ def get_face_orientation(mesh, face):
     # returns quaternion describing the face orientation in objectspace
     normal = mathutils.geometry.normal([mesh.vertices[i].co for i in face.vertices])
     return normal.to_track_quat("Z", "X")
-
-def mean(lst):
-    return sum(lst) / len(lst)
 
 
 def get_face_midpoint(quat, ob, face):
