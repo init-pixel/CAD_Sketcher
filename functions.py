@@ -61,7 +61,6 @@ def ensure_pip():
 
 
 def show_package_info(package: str):
-
     try:
         subprocess.call([global_data.PYPATH, "-m", "pip", "show", package])
     except Exception as e:
@@ -300,7 +299,6 @@ def get_line_intersection(a1, b1, c1, a2, b2, c2) -> Vector:
 
 
 def get_scale_from_pos(co: Vector, rv3d: RegionView3D) -> Vector:
-
     if rv3d.view_perspective == "ORTHO":
         scale = rv3d.view_distance
     else:
@@ -426,6 +424,7 @@ def unique_attribute_setter(self, name: str, value: Any):
 
 
 def breakdown_index(index: int):
+    # See SlvsEntities._set_index for the reverse operation
     type_index = index >> 20
     local_index = index & 0xFFFFF
     return type_index, local_index

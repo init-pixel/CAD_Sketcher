@@ -59,6 +59,7 @@ class Operators(str, Enum):
     SetAllConstraintsVisibility = "view3d.slvs_set_all_constraints_visibility"
     ShowSolverState = "view3d.slvs_show_solver_state"
     Solve = "view3d.slvs_solve"
+    Update = "view3d.slvs_update"
     Test = "view3d.slvs_test"
     Trim = "view3d.slvs_trim"
     Tweak = "view3d.slvs_tweak"
@@ -73,6 +74,11 @@ class Panels(str, Enum):
     SketcherAddContraint = "VIEW3D_PT_sketcher_add_contraint"
     SketcherContraints = "VIEW3D_PT_sketcher_constraints"
     SketcherEntities = "VIEW3D_PT_sketcher_entities"
+
+
+class VisibilityTypes(str, Enum):
+    Hide = "HIDE"
+    Show = "SHOW"
 
 
 class WorkSpaceTools(str, Enum):

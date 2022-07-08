@@ -109,6 +109,13 @@ def get_scale():
 def is_experimental():
     return get_prefs().show_debug_settings
 
+def use_experimental(setting, fallback):
+    """Ensure experimental setting is unused when not in experimental mode"""
+    if not is_experimental():
+        return fallback
+    prefs = get_prefs()
+    return getattr(prefs, setting)
+
 
 class Preferences(AddonPreferences):
     bl_idname = __package__
@@ -187,6 +194,11 @@ class Preferences(AddonPreferences):
     )
     text_size: IntProperty(name="Text Size", default=15, min=5, soft_max=25)
     arrow_scale: FloatProperty(name="Arrow Scale", default=1, min=0.2, soft_max=3)
+    use_align_view: BoolProperty(
+        name="Align View",
+        description="Automatically align view to workplane when activating a sketch.",
+        default=False,
+        )
 
     # Addon updater properties
     auto_check_update: BoolProperty(
@@ -259,6 +271,7 @@ class Preferences(AddonPreferences):
         col.prop(self, "gizmo_scale")
         col.prop(self, "text_size")
         col.prop(self, "arrow_scale")
+        col.prop(self, "use_align_view")
 
         box = layout.box()
         box.label(text="Units")

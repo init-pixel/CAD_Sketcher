@@ -24,7 +24,9 @@ from bpy.types import Context, Event, Mesh, Object, Operator, PropertyGroup, Sce
 from mathutils import Vector
 from mathutils.geometry import intersect_line_plane
 
-from . import class_defines, convertors, functions, global_data
+from . import class_defines, convertors, functions, global_data, preferences
+from .keymaps import get_key_map_desc
+from .declarations import Operators, GizmoGroups, VisibilityTypes, WorkSpaceTools
 from .class_defines import (
     SlvsConstraints,
     SlvsGenericEntity,
@@ -342,42 +344,7 @@ class View3D_OT_slvs_context_menu(Operator, HighlightElement):
                 col.label(text="Nothing hovered")
                 return
 
-            col.label(text="Type: " + type(element).__name__)
-
-            if is_entity:
-                if functions.get_prefs().show_debug_settings:
-                    col.label(text="Index: " + str(element.slvs_index))
-                col.label(text="Is Origin: " + str(element.origin))
-                col.separator()
-                col.prop(element, "name", text="")
-                col.separator()
-                col.prop(element, "visible")
-                col.prop(element, "fixed")
-                col.prop(element, "construction")
-
-            elif element.failed:
-                col.label(text="Failed", icon="ERROR")
-            col.separator()
-
-            if hasattr(element, "draw_props"):
-                element.draw_props(col)
-                col.separator()
-
-            if hasattr(element, "visible"):
-                col.prop(element, "visible")
-                col.separator()
-
-            # Delete operator
-            if is_entity:
-                col.operator(
-                    Operators.DeleteEntity, icon="X"
-                ).index = element.slvs_index
-            else:
-                props = col.operator(
-                    View3D_OT_slvs_delete_constraint.bl_idname, icon="X"
-                )
-                props.type = element.type
-                props.index = constraint_index
+            element.draw_props(col)
 
         context.window_manager.popup_menu(draw_context_menu)
         return {"FINISHED"}
@@ -431,6 +398,27 @@ class View3D_OT_slvs_solve(Operator):
 
         context.area.tag_redraw()
         return {"FINISHED"}
+
+
+class View3D_OT_update(Operator):
+    """Solve all sketches and update converted geometry"""
+    bl_idname = Operators.Update
+    bl_label = "Force Update"
+
+    def execute(self, context):
+        solver = Solver(context, None, all=True)
+        solver.solve()
+
+        update_convertor_geometry(context.scene)
+        return {"FINISHED"}
+
+
+def add_point(context, pos, name=""):
+    data = bpy.data
+    ob = data.objects.new(name, None)
+    ob.location = pos
+    context.collection.objects.link(ob)
+    return ob
 
 
 class View3D_OT_slvs_tweak(Operator):
@@ -789,12 +777,7 @@ class StatefulOperator:
 
         for a in annotations.keys():
             if hasattr(cls, a):
-                raise NameError(
-                    "Cannot register implicit pointer properties, class {} already has attribute of name {}".format(
-                        cls, a
-                    )
-                )
-        setattr(cls, "__annotations__", annotations)
+                raise NameError("Cannot register implicit pointer properties, class {} already has attribute of name {}".format(cls, a))
 
     def state_property(self, state_index):
         return None
@@ -807,7 +790,7 @@ class StatefulOperator:
         state = self.get_states_definition()[index]
         pointer_name = state.pointer
         data = self._state_data.get(index, {})
-        if not "type" in data.keys():
+        if "type" not in data.keys():
             return None
 
         pointer_type = data["type"]
@@ -1074,6 +1057,10 @@ class StatefulOperator:
 
     def check_event(self, event):
         state = self.state
+
+        if event.type == "LEFT_SHIFT":
+            bpy.context.scene.sketcher.selectable_constraints = event.value == "RELEASE"
+
         if (
             event.type in ("LEFTMOUSE", "RET", "NUMPAD_ENTER")
             and event.value == "PRESS"
@@ -3083,6 +3070,26 @@ class View3D_OT_invoke_tool(Operator):
             op("INVOKE_DEFAULT", **options)
         return {"FINISHED"}
 
+SMOOTHVIEW_FACTOR = 0
+def align_view(rv3d, mat_start, mat_end):
+
+    global SMOOTHVIEW_FACTOR
+    SMOOTHVIEW_FACTOR = 0
+    time_step = 0.01
+    increment = 0.01
+
+    def move_view():
+        global SMOOTHVIEW_FACTOR
+        SMOOTHVIEW_FACTOR += increment
+        mat = mat_start.lerp(mat_end, SMOOTHVIEW_FACTOR)
+        rv3d.view_matrix = mat
+
+        if SMOOTHVIEW_FACTOR < 1:
+            return time_step
+
+    bpy.app.timers.register(move_view)
+
+    # rv3d.view_distance = 6
 
 def switch_sketch_mode(self, context: Context, to_sketch_mode: bool):
     if to_sketch_mode:
@@ -3104,8 +3111,10 @@ def activate_sketch(context: Context, index: int, operator: Operator):
     switch_sketch_mode(self=operator, context=context, to_sketch_mode=(index != -1))
 
     space_data = context.space_data
+    rv3d = context.region_data
 
     sk = None
+    do_align_view = preferences.use_experimental("use_align_view", False)
     if index != -1:
         sk = context.scene.sketcher.entities.get(index)
         if not sk:
@@ -3114,7 +3123,28 @@ def activate_sketch(context: Context, index: int, operator: Operator):
 
         space_data.show_object_viewport_curve = False
         space_data.show_object_viewport_mesh = False
+
+        #Align view to normal of wp
+        if do_align_view:
+            matrix_target = sk.wp.matrix_basis.inverted()
+            matrix_start = rv3d.view_matrix
+            align_view(rv3d, matrix_start, matrix_target)
+            rv3d.view_perspective = "ORTHO"
+
     else:
+        #Reset view
+        if do_align_view:
+            rv3d.view_distance = 18
+            matrix_start = rv3d.view_matrix
+            matrix_default = Matrix((
+                (0.4100283980369568, 0.9119764566421509, -0.013264661654829979, 0.0),
+                (-0.4017425775527954, 0.19364342093467712, 0.8950449228286743, 0.0),
+                (0.8188283443450928, -0.36166495084762573, 0.44577890634536743, -17.986562728881836),
+                (0.0, 0.0, 0.0, 1.0)
+            ))
+            align_view(rv3d, matrix_start, matrix_default)
+            rv3d.view_perspective = "PERSP"
+
         space_data.show_object_viewport_curve = True
         space_data.show_object_viewport_mesh = True
 
@@ -3333,11 +3363,13 @@ class GenericConstraintOp(GenericEntityOp):
         for i, _ in enumerate(cls_constraint.signature):
             name_index = i + 1
             if hasattr(cls_constraint, "get_types") and operator:
-                types = cls_constraint.get_types(i, *operator._available_entities())
+                types = cls_constraint.get_types(i, operator._available_entities())
             else:
                 types = cls_constraint.signature[i]
 
-            state_docstr = "Pick entity to constrain."
+            if not types:
+                break
+
             states.append(
                 state_from_args(
                     "Entity " + str(name_index),
@@ -3462,6 +3494,13 @@ class VIEW3D_OT_slvs_add_distance(Operator, GenericConstraintOp):
         row.active = self.target.use_align()
         row.prop(self, "align")
 
+def invert_angle_getter(self):
+    return self.get("setting", self.bl_rna.properties["setting"].default)
+
+def invert_angle_setter(self, setting):
+    self["value"] = math.pi - self.value
+    self["setting"] = setting
+
 
 class VIEW3D_OT_slvs_add_angle(Operator, GenericConstraintOp):
     bl_idname = Operators.AddAngle
@@ -3475,7 +3514,7 @@ class VIEW3D_OT_slvs_add_angle(Operator, GenericConstraintOp):
         options={"SKIP_SAVE"},
         precision=5,
     )
-    setting: BoolProperty(name="Invert")
+    setting: BoolProperty(name="Measure supplementary angle", default = False, get=invert_angle_getter, set=invert_angle_setter)
     type = "ANGLE"
 
     def fini(self, context, succeede):
@@ -3592,6 +3631,10 @@ class VIEW3D_OT_slvs_add_ratio(Operator, GenericConstraintOp, GenericEntityOp):
 class View3D_OT_slvs_set_all_constraints_visibility(Operator, HighlightElement):
     """Set all constraints' visibility
     """
+    _visibility_items = [
+        (VisibilityTypes.Hide, "Hide all", "Hide all constraints"),
+        (VisibilityTypes.Show, "Show all", "Show all constraints"),
+    ]
 
     bl_idname = Operators.SetAllConstraintsVisibility
     bl_label = "Set all constraints' visibility"
@@ -3601,15 +3644,18 @@ class View3D_OT_slvs_set_all_constraints_visibility(Operator, HighlightElement):
     visibility: EnumProperty(
         name="Visibility",
         description="Visiblity",
-        items=[
-            ("HIDE", "Hide all", "Hide all constraints"),
-            ("SHOW", "Show all", "Show all constraints"),
-        ],
-    )
+        items=_visibility_items)
 
     @classmethod
     def poll(cls, context):
         return True
+
+    @classmethod
+    def description(cls, context, properties):
+        for vi in cls._visibility_items:
+            if vi[0] == properties.visibility:
+                return vi[2]
+        return None
 
     def execute(self, context):
         constraint_lists = context.scene.sketcher.constraints.get_lists()
@@ -3886,6 +3932,7 @@ classes = (
     View3D_OT_slvs_delete_entity,
     *constraint_operators,
     View3D_OT_slvs_solve,
+    View3D_OT_update,
     View3D_OT_slvs_delete_constraint,
     View3D_OT_slvs_tweak_constraint_value_pos,
     SKETCHER_OT_add_preset_theme,

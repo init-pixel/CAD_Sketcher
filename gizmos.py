@@ -139,7 +139,10 @@ class VIEW3D_GT_slvs_constraint(ConstraintGizmo, Gizmo):
             mat = Matrix.Translation(Vector((pos[0], pos[1], 0.0)))
             self.matrix_basis = mat
 
-    def test_select(self, context: Context, location):
+    def test_select(self, context, location):
+        if not context.scene.sketcher.selectable_constraints:
+            return -1
+
         location = Vector(location).to_3d()
         location -= self.matrix_basis.translation
         location *= 1.0 / self.scale_basis
@@ -191,6 +194,9 @@ class VIEW3D_GT_slvs_constraint_value(ConstraintGizmo, Gizmo):
     __slots__ = ("type", "index", "width", "height")
 
     def test_select(self, context, location):
+        if not context.scene.sketcher.selectable_constraints:
+            return -1
+
         coords = Vector(location) - self.matrix_basis.translation.to_2d()
 
         width, height = self.width, self.height
@@ -203,30 +209,27 @@ class VIEW3D_GT_slvs_constraint_value(ConstraintGizmo, Gizmo):
 
         if not constr.visible or not hasattr(constr, "value_placement"):
             return
-        pos = constr.value_placement(context)
-
-        if not pos:
-            return
-
-        # Update Matrix for selection
-        self.matrix_basis = Matrix.Translation(pos.to_3d())
-
-        text = _get_formatted_value(context, constr)
-        font_id = 0
 
         prefs = functions.get_prefs()
         theme = prefs.theme_settings
-        color = (
-            theme.constraint.text_highlight
-            if self.is_highlight
-            else theme.constraint.text
-        )
+        color = theme.constraint.text_highlight if self.is_highlight else theme.constraint.text
+        text = _get_formatted_value(context, constr)
+        font_id = 0
+        dpi = context.preferences.system.dpi
+        text_size = prefs.text_size
+
         blf.color(font_id, *color)
-
-        blf.size(font_id, prefs.text_size, context.preferences.system.dpi)
-
+        blf.size(font_id, text_size, dpi)
         self.width, self.height = blf.dimensions(font_id, text)
-        blf.position(font_id, pos[0] - self.width / 2, pos[1], 0)
+
+        margin = text_size / 4
+
+        pos = constr.value_placement(context)
+        if not pos:
+            return
+        self.matrix_basis = Matrix.Translation(pos.to_3d()) # Update Matrix for selection
+
+        blf.position(font_id, pos[0]-self.width/2, pos[1] + margin, 0)
         blf.draw(font_id, text)
 
     def setup(self):
@@ -252,6 +255,9 @@ class ConstraintGizmoGeneric(ConstraintGizmo):
         self.draw_custom_shape(self.custom_shape)
 
     def draw_select(self, context, select_id):
+        if not context.scene.sketcher.selectable_constraints:
+            return
+
         constr = self._get_constraint(context)
         if not constr.visible:
             return
@@ -283,13 +289,15 @@ def draw_arrow_shape(target, shoulder, width, is_3d=False):
 def get_overshoot(scale, dir):
     if dir == 0:
         return 0
-    return -math.copysign(DEFAULT_OVERSHOOT * scale, dir)
+    #use factor of 0.005 for one-half arrowhead
+    overshoot = scale * 0.005 * functions.get_prefs().arrow_scale
+    return -math.copysign(overshoot, dir)
 
 
 def get_arrow_size(dist, scale):
-    size = math.copysign(
-        min(scale * functions.get_prefs().arrow_scale / 100, abs(dist * 0.8),), dist,
-    )
+    size = scale * 0.01 * functions.get_prefs().arrow_scale
+    size = min(size, abs(dist * 0.67))
+    size = math.copysign(size, dist)
     return size, size / 2
 
 
@@ -308,8 +316,9 @@ class VIEW3D_GT_slvs_distance(Gizmo, ConstraintGizmoGeneric):
         ui_scale = context.preferences.system.ui_scale
         dist = constr.value / 2 / ui_scale
         offset = self.target_get_value("offset")
-        entity1 = constr.entity1
-        entity2 = constr.entity2
+        entity1, entity2 = constr.entity1, constr.entity2
+        if entity1.is_line():
+            entity1, entity2 = entity1.p1, entity1.p2
 
         # Get constraints points in local space and adjust helplines based on their position
         mat_inv = constr.matrix_basis().inverted()
@@ -357,38 +366,63 @@ class VIEW3D_GT_slvs_distance(Gizmo, ConstraintGizmoGeneric):
             (dist, point_right.y, 0.0),
         )
 
-    def _create_shape(self, context: Context, constr, select=False):
-        ui_scale = context.preferences.system.ui_scale
-        dist = constr.value / 2 / ui_scale
-        offset = self.target_get_value("offset")
-
-        p1 = Vector((-dist, offset, 0.0))
-        p2 = Vector((dist, offset, 0.0))
-
+    def _create_shape(self, context, constr, select=False):
         rv3d = context.region_data
+        ui_scale = context.preferences.system.ui_scale
+
+        half_dist = constr.value / 2 / ui_scale
+        offset = self.target_get_value("offset")
+        outset = constr.draw_outset
+
+        p1 = Vector((-half_dist, offset, 0.0))
+        p2 = Vector((half_dist, offset, 0.0))
+        if not constr.text_inside(ui_scale):
+            p1, p2 = p2, p1
         p1_global, p2_global = [self.matrix_world @ p for p in (p1, p2)]
-        scale_1, scale_2 = [
-            functions.get_scale_from_pos(p, rv3d) for p in (p1_global, p2_global)
-        ]
 
-        arrow_1 = get_arrow_size(dist, scale_1)
-        arrow_2 = get_arrow_size(dist, scale_2)
+        scale_1, scale_2 = [functions.get_scale_from_pos(p, rv3d) for p in (p1_global, p2_global)]
 
-        coords = (
-            *draw_arrow_shape(
-                p1, p1 + Vector((arrow_1[0], 0, 0)), arrow_1[1], is_3d=True
-            ),
-            p1,
-            p2,
-            *draw_arrow_shape(
-                p2, p2 - Vector((arrow_2[0], 0, 0)), arrow_2[1], is_3d=True
-            ),
-            *(
-                self._get_helplines(context, constr, scale_1, scale_2)
-                if not select
-                else ()
-            ),
-        )
+        arrow_1 = get_arrow_size(half_dist, scale_1)
+        arrow_2 = get_arrow_size(half_dist, scale_2)
+
+        if constr.text_inside(ui_scale):
+            coords = (
+                *draw_arrow_shape(
+                    p1,
+                    p1 + Vector((arrow_1[0], 0, 0)),
+                    arrow_1[1],
+                    is_3d=True
+                ),
+                p1,
+                p2,
+                *draw_arrow_shape(
+                    p2,
+                    p2 - Vector((arrow_2[0], 0, 0)),
+                    arrow_2[1],
+                    is_3d=True
+                ),
+                *(self._get_helplines(context, constr, scale_1, scale_2) if not select else ()),
+            )
+        else:  # the same thing, but with a little jitter to the outside
+            coords = (
+                *draw_arrow_shape(
+                    p1,
+                    p1 + Vector((arrow_1[0], 0, 0)),
+                    arrow_1[1],
+                    is_3d=True
+                ),
+                p1,
+                Vector((outset, offset, 0)),  # jitter back and forth to extend leader line for text_outside case
+                p1,                           # but it is unnecessary work for text_inside case
+                p2,
+                *draw_arrow_shape(
+                    p2,
+                    p2 - Vector((arrow_2[0], 0, 0)),
+                    arrow_2[1],
+                    is_3d=True
+                ),
+                *(self._get_helplines(context, constr, scale_1, scale_2) if not select else ()),
+            )
 
         self.custom_shape = self.new_custom_shape("LINES", coords)
 
@@ -418,48 +452,70 @@ class VIEW3D_GT_slvs_angle(Gizmo, ConstraintGizmoGeneric):
         )
 
     def _create_shape(self, context, constr, select=False):
-        angle = abs(constr.value)
-        radius = self.target_get_value("offset")
 
-        offset = -angle / 2
+        def get_arrow_angle():
+            # The arrowheads are placed on an arc spanning between the
+            #     witness lines, and we want them to point "along" this arc.
+            # So we rotate the arrowhead by a quarter-turn plus (or minus)
+            #     half the amount the arc segment underneath it rotates.
+            segment = length / abs(radius)
+            rotation = (math.tau/4 + segment/2) if constr.text_inside() else (math.tau/4 - segment/2)
+            return rotation
+
         rv3d = context.region_data
 
-        p1 = functions.pol2cart(radius, offset)
-        p2 = functions.pol2cart(radius, offset + angle)
+        # note: radius is signed value, but
+        # angle, length, lengths[], widths[] are all absolute values
+        radius = self.target_get_value("offset")
+        angle = abs(constr.value)
+        half_angle = angle / 2
+        p1 = functions.pol2cart(radius, -half_angle)
+        p2 = functions.pol2cart(radius, half_angle)
 
-        lengths, widths = [], []
         scales = []
+        lengths, widths = [], []    # Length is limited to no more than 1/3 the span
         for p in (p1, p2):
             scale = functions.get_scale_from_pos(self.matrix_world @ p.to_3d(), rv3d)
             scales.append(scale)
-            length = min(
-                get_arrow_size(radius, scale)[0], abs(0.8 * radius * constr.value / 2),
-            )
 
+            length = min(
+                abs(get_arrow_size(radius, scale)[0]),
+                abs(radius * (angle/3)),
+            )
             lengths.append(length)
             widths.append(length * 0.4)
 
-        u = math.pi * radius * 2
-        a = abs(length * 360 / u)
-
-        arrow_angle = math.radians(90 + a / 2)
+        arrow_angle = get_arrow_angle()
 
         p1_s = p1.copy()
         p1_s.rotate(Matrix.Rotation(arrow_angle, 2, "Z"))
-        p1_s.length = abs(lengths[0])
+        p1_s.length = lengths[0]
 
         p2_s = p2.copy()
         p2_s.rotate(Matrix.Rotation(-arrow_angle, 2, "Z"))
-        p2_s.length = abs(lengths[1])
+        p2_s.length = lengths[1]
 
-        coords = (
-            *draw_arrow_shape(p1, p1 + p1_s, widths[0]),
-            *functions.coords_arc_2d(
-                0, 0, radius, 32, angle=angle, offset=offset, type="LINES"
-            ),
-            *draw_arrow_shape(p2, p2 + p2_s, widths[1]),
-            *(self._get_helplines(context, constr, *scales) if not select else ()),
-        )
+        if constr.text_inside():
+            coords = (
+                *draw_arrow_shape(p1, p1 + p1_s, widths[0]),
+                *functions.coords_arc_2d(
+                    0, 0, radius, 32, angle=angle, offset=-half_angle, type="LINES"
+                ),
+                *draw_arrow_shape(p2, p2 + p2_s, widths[1]),
+                *(self._get_helplines(context, constr, *scales) if not select else ()),
+            )
+        else:
+            leader_end = constr.draw_outset # signed angle, measured from the Constrained Angle's bisector
+            leader_start = math.copysign(half_angle, -leader_end)
+            leader_length = leader_end - leader_start
+            coords = (
+                *draw_arrow_shape(p1, p1 - p1_s, widths[0]),
+                *functions.coords_arc_2d(
+                    0, 0, radius, 16, angle=leader_length, offset=leader_start, type="LINES"
+                ),
+                *draw_arrow_shape(p2, p2 - p2_s, widths[1]),
+                *(self._get_helplines(context, constr, *scales) if not select else ()),
+            )
 
         self.custom_shape = self.new_custom_shape("LINES", coords)
 
@@ -476,9 +532,10 @@ class VIEW3D_GT_slvs_diameter(Gizmo, ConstraintGizmoGeneric):
     )
 
     def _create_shape(self, context, constr, select=False):
+        ui_scale = context.preferences.system.ui_scale
         angle = constr.leader_angle
-        offset = constr.draw_offset / context.preferences.system.ui_scale
-        dist = constr.radius / context.preferences.system.ui_scale
+        offset = constr.draw_offset / ui_scale
+        dist = constr.radius / ui_scale
 
         rv3d = context.region_data
 
@@ -496,7 +553,7 @@ class VIEW3D_GT_slvs_diameter(Gizmo, ConstraintGizmoGeneric):
         if constr.setting:
             # RADIUS_MODE:
             #   drawn inside and outside as a single segment
-            if constr.draw_inside:
+            if constr.text_inside():
                 coords = (
                     *draw_arrow_shape(
                         p2, functions.pol2cart(dist - arrow_2[0], angle), arrow_2[1]
@@ -517,7 +574,7 @@ class VIEW3D_GT_slvs_diameter(Gizmo, ConstraintGizmoGeneric):
             # DIAMETER_MODE:
             #   drawn inside as a single segment
             #   drawn outside as a 2-segment gizmo
-            if constr.draw_inside:
+            if constr.text_inside():
                 coords = (
                     *draw_arrow_shape(
                         p1, functions.pol2cart(arrow_2[0] - dist, angle), arrow_2[1]
@@ -535,12 +592,10 @@ class VIEW3D_GT_slvs_diameter(Gizmo, ConstraintGizmoGeneric):
                     ),
                     p2,
                     functions.pol2cart(offset, angle),
-                    functions.pol2cart(offset, angle + math.pi),
+                    functions.pol2cart(dist + (3 * arrow_2[0]), angle + math.pi), #limit length to 3 arrowheads
                     p1,
                     *draw_arrow_shape(
-                        p1,
-                        functions.pol2cart(dist + arrow_2[0], angle + math.pi),
-                        arrow_2[1],
+                        p1, functions.pol2cart(dist + arrow_2[0], angle + math.pi), arrow_2[1]
                     ),
                 )
 

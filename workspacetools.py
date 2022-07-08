@@ -19,6 +19,19 @@ def tool_numeric_invoke_km(operator: Operator):
         km.append((operator, {"type": event, "value": "PRESS"}, None,))
     return km
 
+generic_keymap = (
+    (
+        "wm.context_set_boolean",
+        {"type": "LEFT_SHIFT", "value": "PRESS"},
+        {"properties": [("data_path", "scene.sketcher.selectable_constraints"), ("value", False)]}
+    ),
+    (
+        "wm.context_set_boolean",
+        {"type": "LEFT_SHIFT", "value": "RELEASE"},
+        {"properties": [("data_path", "scene.sketcher.selectable_constraints"), ("value", True)]}
+    ),
+)
+
 
 class VIEW3D_T_slvs_select(WorkSpaceTool):
     bl_space_type = "VIEW_3D"
@@ -29,6 +42,7 @@ class VIEW3D_T_slvs_select(WorkSpaceTool):
     bl_icon = "ops.generic.select"
     bl_widget = GizmoGroups.Preselection
     bl_keymap = (
+        *generic_keymap,
         (
             Operators.SelectAll,
             {"type": "ESC", "value": "PRESS"},
@@ -39,11 +53,31 @@ class VIEW3D_T_slvs_select(WorkSpaceTool):
             {"type": "A", "value": "PRESS", "ctrl": True},
             {"properties": [("deselect", False)]},
         ),
-        (Operators.Select, {"type": "LEFTMOUSE", "value": "CLICK"}, None,),
-        (Operators.Tweak, {"type": "LEFTMOUSE", "value": "CLICK_DRAG"}, None,),
-        (Operators.Tweak, {"type": "LEFTMOUSE", "value": "PRESS", "ctrl": True}, None,),
-        (Operators.ContextMenu, {"type": "RIGHTMOUSE", "value": "PRESS"}, None,),
-        (Operators.DeleteEntity, {"type": "DEL", "value": "PRESS"}, None,),
+        (
+            Operators.Select,
+            {"type": "LEFTMOUSE", "value": "CLICK", "any":True},
+            None,
+        ),
+        (
+            Operators.Tweak,
+            {"type": "LEFTMOUSE", "value": "CLICK_DRAG"},
+            None,
+        ),
+        (
+            Operators.Tweak,
+            {"type": "LEFTMOUSE", "value": "PRESS", "ctrl": True},
+            None,
+        ),
+        (
+            Operators.ContextMenu,
+            {"type": "RIGHTMOUSE", "value": "PRESS"},
+            None,
+        ),
+        (
+            Operators.DeleteEntity,
+            {"type": "DEL", "value": "PRESS"},
+            None,
+        ),
         *tool_access,
     )
 
@@ -52,6 +86,7 @@ class VIEW3D_T_slvs_select(WorkSpaceTool):
 
 
 tool_keymap = (
+    *generic_keymap,
     (
         "wm.tool_set_by_id",
         {"type": "ESC", "value": "PRESS"},
@@ -70,7 +105,7 @@ def operator_access(operator: Operator):
         *tool_numeric_invoke_km(operator),
         (
             operator,
-            {"type": "LEFTMOUSE", "value": "PRESS"},
+            {"type": "LEFTMOUSE", "value": "PRESS", "any": True},
             {"properties": [("wait_for_input", False)]},
         ),
     )

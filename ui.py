@@ -141,6 +141,8 @@ class VIEW3D_PT_sketcher_debug(VIEW3D_PT_sketcher_base):
         layout.prop(prefs, "hide_inactive_constraints")
         layout.prop(prefs, "all_entities_selectable")
         layout.prop(prefs, "force_redraw")
+        layout.prop(context.scene.sketcher, "selectable_constraints")
+        layout.prop(prefs, "use_align_view")
 
     @classmethod
     def poll(cls, context: Context):
@@ -159,7 +161,6 @@ class VIEW3D_PT_sketcher_add_constraints(VIEW3D_PT_sketcher_base):
         col = layout.column(align=True)
         for op in operators.constraint_operators:
             col.operator(op.bl_idname)
-
 
 class VIEW3D_PT_sketcher_entities(VIEW3D_PT_sketcher_base):
     bl_label = "Entities"
@@ -312,7 +313,7 @@ def sketch_selector(
     is_header: bool = False,
     show_selector: bool = True,
 ):
-    row = layout.row(align=is_header)
+    row = layout.row(align=True)
     index = context.scene.sketcher.active_sketch_i
     name = "Sketches"
 
@@ -330,15 +331,15 @@ def sketch_selector(
         row.scale_y = scale_y
 
     else:
+
         row.scale_y = scale_y
         # TODO: Don't show text when is_header
-        row.operator(Operators.AddSketch, icon="ADD")
-        # row.operator(Operators.AddSketch, icon="ADD").wait_for_input = True
+        row.operator(Operators.AddSketch, icon="ADD").wait_for_input = True
 
-        if not is_header:
-            row = layout.row()
         if show_selector:
             row.menu(VIEW3D_MT_sketches.bl_idname, text=name)
+
+    row.operator(Operators.Update, icon="FILE_REFRESH", text="")
 
 
 def draw_object_context_menu(self, context: Context):
