@@ -15,7 +15,6 @@ from bpy.props import (
     FloatVectorProperty,
     EnumProperty,
     StringProperty,
-    IntVectorProperty,
 )
 import bgl
 from bpy_extras.view3d_utils import location_3d_to_region_2d
