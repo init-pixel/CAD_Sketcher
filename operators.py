@@ -5,7 +5,6 @@ import logging
 import math
 from collections import deque, namedtuple
 from typing import Deque, Generator, Union
-from pathlib import Path
 
 import bgl
 import bpy
@@ -30,7 +29,9 @@ from .declarations import Operators, GizmoGroups, VisibilityTypes, WorkSpaceTool
 from .class_defines import (
     SlvsConstraints,
     SlvsGenericEntity,
+    SlvsPoint2D,
     SlvsPoint3D,
+    SlvsNormal3D,
     SlvsSketch,
     solve_system,
     SlvsEntities,
@@ -1792,20 +1793,20 @@ class GenericEntityOp(StatefulOperator):
                 annotations = cls.__annotations__.copy()
 
             # handle SlvsPoint3D fallback props
-            if any([t == class_defines.SlvsPoint3D for t in types]):
+            if any([t == SlvsPoint3D for t in types]):
                 kwargs = {"size": 3, "subtype": "XYZ", "unit": "LENGTH"}
                 annotations[name + "_fallback"] = FloatVectorProperty(
                     name=name, **kwargs
                 )
 
             # handle SlvsPoint2D fallback props
-            if any([t == class_defines.SlvsPoint2D for t in types]):
+            if any([t == SlvsPoint2D for t in types]):
                 kwargs = {"size": 2, "subtype": "XYZ", "unit": "LENGTH"}
                 annotations[name + "_fallback"] = FloatVectorProperty(
                     name=name, **kwargs
                 )
 
-            if any([t == class_defines.SlvsNormal3D for t in types]):
+            if any([t == SlvsNormal3D for t in types]):
                 kwargs = {"size": 3, "subtype": "EULER", "unit": "ROTATION"}
                 annotations[name + "_fallback"] = FloatVectorProperty(
                     name=name, **kwargs
@@ -3285,7 +3286,7 @@ class GenericConstraintOp(GenericEntityOp):
 
     def _available_entities(self):
         # Gets entities that are already set
-        cls = class_defines.SlvsConstraints.cls_from_type(self.type)
+        cls = SlvsConstraints.cls_from_type(self.type)
         entities = [None] * len(cls.signature)
         for i, name in enumerate(self._entity_prop_names):
             if hasattr(self, name):
@@ -3299,7 +3300,7 @@ class GenericConstraintOp(GenericEntityOp):
     def states(cls, operator=None):
         states = []
 
-        cls_constraint = class_defines.SlvsConstraints.cls_from_type(cls.type)
+        cls_constraint = SlvsConstraints.cls_from_type(cls.type)
 
         for i, _ in enumerate(cls_constraint.signature):
             name_index = i + 1
@@ -3341,7 +3342,7 @@ class GenericConstraintOp(GenericEntityOp):
     @classmethod
     def description(cls, context, properties):
         constraint_type = cls.type
-        cls_constraint = class_defines.SlvsConstraints.cls_from_type(constraint_type)
+        cls_constraint = SlvsConstraints.cls_from_type(constraint_type)
 
         states = [
             state_desc(s.name, s.description, s.types)
@@ -3435,8 +3436,10 @@ class VIEW3D_OT_slvs_add_distance(Operator, GenericConstraintOp):
         row.active = self.target.use_align()
         row.prop(self, "align")
 
+
 def invert_angle_getter(self):
     return self.get("setting", self.bl_rna.properties["setting"].default)
+
 
 def invert_angle_setter(self, setting):
     self["value"] = math.pi - self.value
