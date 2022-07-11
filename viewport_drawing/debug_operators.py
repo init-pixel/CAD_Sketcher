@@ -2,13 +2,10 @@ from pathlib import Path
 
 import bpy
 import bmesh
-from bpy.props import IntProperty
 from bpy.utils import register_class, unregister_class
 from bpy.types import Operator, Context, Event
-from cv2 import HOGDescriptor
 
 from .drawing import DrawnMesh
-from . import io
 
 SCRIPTS_DIR = Path(__file__).parent
 MESHES_DIR = SCRIPTS_DIR / "meshes"
